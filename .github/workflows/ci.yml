@@ -75,11 +75,8 @@ jobs:
 
       - name: Run pytest
         run: |
-          if [ -d "tests" ]; then
-            pytest tests/ -v --tb=short
-          else
-            echo "No tests directory found yet — skipping."
-          fi
+          # Exit code 5 = no tests collected, which is expected at bootstrap stage
+          pytest tests/ -v --tb=short || code=$?; if [ "${code:-0}" -eq 5 ]; then echo "No tests yet — OK."; elif [ "${code:-0}" -ne 0 ]; then exit $code; fi
 
   # ─────────────────────────────────────────
   # 3. Validation Docker Compose
@@ -145,6 +142,3 @@ jobs:
             --from ${{ github.event.pull_request.base.sha }} \
             --to ${{ github.event.pull_request.head.sha }} \
             --verbose
-        env:
-          COMMITLINT_CONFIG: |
-            module.exports = { extends: ['@commitlint/config-conventional'] };
