@@ -1,8 +1,12 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
+set -e
 
-echo "🚀 Démarrage de LUCAS..."
-docker compose up -d
-echo ""
-echo "✅ LUCAS est démarré !"
-echo "👉 Interface : http://localhost:${LUCAS_DASHBOARD_PORT:-3000}"
+if [ ! -f ".env" ]; then
+  echo "[ERROR] .env not found. Run ./scripts/setup.sh first." && exit 1
+fi
+
+echo "[LUCAS] Starting..."
+docker compose up -d --build
+echo "[OK] LUCAS is running"
+echo "Open WebUI : http://localhost:8080"
+echo "LUCAS Core : http://localhost:8000/docs"

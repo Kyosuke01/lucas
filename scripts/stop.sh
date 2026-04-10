@@ -1,6 +1,6 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
+set -e
 
-echo "🛑 Arrêt de LUCAS..."
+echo "[LUCAS] Stopping..."
 docker compose down
-echo "✅ LUCAS arrêté."
+echo "[OK] LUCAS stopped"
