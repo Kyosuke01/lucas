@@ -89,6 +89,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Create dummy .env for CI
+        run: cp .env.example .env
+
       - name: Validate docker-compose
         run: |
           if [ -f "docker-compose.yml" ]; then
