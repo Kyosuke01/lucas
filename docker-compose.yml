@@ -20,9 +20,9 @@ services:
     depends_on:
       - ollama
     environment:
-      OLLAMA_BASE_URL: http://ollama:11434
-      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY:-change_me_in_production}
-      ENABLE_SIGNUP: "false"
+      OLLAMA_BASE_URL: http://${OLLAMA_HOST:-ollama}:${OLLAMA_PORT:-11434}
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY}
+      ENABLE_SIGNUP: ${ENABLE_SIGNUP:-false}
     ports:
       - "${OPEN_WEBUI_PORT:-8080}:8080"
     volumes:
@@ -37,8 +37,12 @@ services:
     depends_on:
       - ollama
     environment:
-      OLLAMA_BASE_URL: http://ollama:11434
+      LUCAS_ENV: ${LUCAS_ENV:-development}
+      LUCAS_LOG_LEVEL: ${LUCAS_LOG_LEVEL:-INFO}
+      OLLAMA_BASE_URL: http://${OLLAMA_HOST:-ollama}:${OLLAMA_PORT:-11434}
       OLLAMA_DEFAULT_MODEL: ${OLLAMA_DEFAULT_MODEL:-llama3.2:3b}
+      LUCAS_ACTION_CONFIRM: ${LUCAS_ACTION_CONFIRM:-true}
+      LUCAS_ACTION_WHITELIST: ${LUCAS_ACTION_WHITELIST:-true}
     ports:
       - "8000:8000"
     volumes:
