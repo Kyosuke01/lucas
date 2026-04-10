@@ -7,10 +7,10 @@ app = FastAPI(title=settings.app_name, version=settings.app_version)
 app.include_router(health_router, prefix="/api")
 
 
-@app.get('/')
+@app.get("/")
 def root() -> dict:
     return {
-        'message': 'LUCAS Core is running',
-        'docs': '/docs',
-        'health': '/api/health',
+        "message": "LUCAS Core is running",
+        "docs": "/docs",
+        "health": "/api/health",
     }
