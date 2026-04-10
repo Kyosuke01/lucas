@@ -1,0 +1,2 @@
+# Production dependencies
+# Add packages here as the project grows
