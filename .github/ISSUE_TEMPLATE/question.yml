@@ -1,0 +1,17 @@
+name: ❓ Question
+description: Poser une question sur LUCAS
+labels: ["question"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Ta question
+      description: Décris ta question avec le plus de contexte possible.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Contexte
+      description: Qu'est-ce que tu essaies de faire ? Qu'as-tu déjà essayé ?

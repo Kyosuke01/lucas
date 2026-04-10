@@ -1,0 +1,83 @@
+# ========================
+# LUCAS — .gitignore
+# ========================
+
+# Environnement
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+.python-version
+
+# Node / Frontend
+node_modules/
+dist/
+.next/
+.nuxt/
+build/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker
+docker-compose.override.yml
+
+# Modèles IA (trop volumineux pour Git)
+models/
+weights/
+*.gguf
+*.ggml
+*.bin
+
+# Données locales
+data/
+logs/
+*.db
+*.sqlite
+*.sqlite3
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Tests
+.coverage
+.pytest_cache/
+htmlcov/
+.tox/
+
+# Secrets
+*.pem
+*.key
+*.cert
+*.p12
+secrets/

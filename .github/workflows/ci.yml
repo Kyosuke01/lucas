@@ -1,0 +1,145 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - '**'
+    tags-ignore:
+      - '**'
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─────────────────────────────────────────
+  # 1. Lint & format check
+  # ─────────────────────────────────────────
+  lint:
+    name: 🔍 Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install linting tools
+        run: |
+          pip install ruff black
+
+      - name: Run Ruff (linter)
+        run: ruff check . --output-format=github
+        continue-on-error: false
+
+      - name: Run Black (formatter check)
+        run: black --check --diff .
+
+  # ─────────────────────────────────────────
+  # 2. Tests unitaires
+  # ─────────────────────────────────────────
+  test:
+    name: 🧪 Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt -r requirements-dev.txt
+        continue-on-error: true  # Le fichier peut ne pas exister encore
+
+      - name: Run pytest
+        run: |
+          if [ -d "tests" ]; then
+            pytest tests/ -v --tb=short
+          else
+            echo "No tests directory found yet — skipping."
+          fi
+
+  # ─────────────────────────────────────────
+  # 3. Validation Docker Compose
+  # ─────────────────────────────────────────
+  docker-validate:
+    name: 🐳 Docker Compose Validate
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check docker-compose files exist
+        run: |
+          if [ -f "docker-compose.yml" ]; then
+            docker compose config --quiet
+            echo "✅ docker-compose.yml is valid"
+          else
+            echo "⚠️  docker-compose.yml not found yet — skipping validation."
+          fi
+
+  # ─────────────────────────────────────────
+  # 4. Security scan (secrets)
+  # ─────────────────────────────────────────
+  security:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks (secrets detection)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ─────────────────────────────────────────
+  # 5. Vérification des conventional commits
+  # ─────────────────────────────────────────
+  commitlint:
+    name: 📝 Conventional Commits
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install commitlint
+        run: |
+          npm install --save-dev @commitlint/cli @commitlint/config-conventional
+
+      - name: Validate PR commits
+        run: |
+          npx commitlint \
+            --from ${{ github.event.pull_request.base.sha }} \
+            --to ${{ github.event.pull_request.head.sha }} \
+            --verbose
+        env:
+          COMMITLINT_CONFIG: |
+            module.exports = { extends: ['@commitlint/config-conventional'] };

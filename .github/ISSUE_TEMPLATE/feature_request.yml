@@ -1,0 +1,50 @@
+name: ✨ Feature Request
+description: Proposer une nouvelle fonctionnalité pour LUCAS
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci pour ta suggestion ! Décris le plus précisément possible ce que tu voudrais voir dans LUCAS.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problème ou besoin
+      description: Quel problème cette feature résoudrait-elle ?
+      placeholder: Je suis frustré quand...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Solution proposée
+      description: Décris la solution que tu imagines.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considérées
+      description: As-tu envisagé d'autres approches ?
+
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Phase du projet concernée
+      options:
+        - Phase 1 — Base locale minimale
+        - Phase 2 — Extension vocale
+        - Phase 3 — Actions locales
+        - Phase 4 — Services locaux / domotique
+        - Hors phases
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Contexte additionnel
+      description: Screenshots, références, exemples d'autres projets...

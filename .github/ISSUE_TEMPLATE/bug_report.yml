@@ -1,0 +1,79 @@
+name: 🐛 Bug Report
+description: Signaler un bug dans LUCAS
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci de prendre le temps de signaler ce bug ! Plus les détails sont précis, plus vite on peut le corriger.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description du bug
+      description: Une description claire et concise du problème.
+      placeholder: Que s'est-il passé ?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Étapes pour reproduire
+      description: Comment reproduire le bug ?
+      placeholder: |
+        1. Aller sur...
+        2. Cliquer sur...
+        3. Voir l'erreur...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportement attendu
+      description: Qu'est-ce qui aurait dû se passer ?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: profile
+    attributes:
+      label: Profil LUCAS
+      options:
+        - LUCAS Lite (8 Go RAM)
+        - LUCAS Standard (16 Go RAM)
+        - LUCAS Plus (32 Go RAM)
+        - LUCAS Pro Local (64 Go+ RAM)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Système d'exploitation
+      options:
+        - Linux
+        - macOS
+        - Windows
+    validations:
+      required: true
+
+  - type: input
+    id: docker_version
+    attributes:
+      label: Version Docker
+      placeholder: ex. 27.0.0
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Colle les logs pertinents ici.
+      render: shell
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Contexte additionnel
+      description: Screenshots, fichiers de config (sans secrets), informations supplémentaires.

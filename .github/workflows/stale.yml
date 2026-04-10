@@ -1,0 +1,32 @@
+name: Stale Issues & PRs
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Chaque lundi à 9h UTC
+  workflow_dispatch:
+
+jobs:
+  stale:
+    name: 🧹 Mark stale issues and PRs
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/stale@v9
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          stale-issue-message: |
+            Cette issue n'a pas eu d'activité depuis 30 jours. Elle sera fermée automatiquement dans 7 jours si aucune activité n'est détectée.
+            Si elle est toujours pertinente, merci de laisser un commentaire.
+          stale-pr-message: |
+            Cette PR n'a pas eu d'activité depuis 30 jours. Elle sera fermée automatiquement dans 7 jours si aucune activité n'est détectée.
+            Si elle est toujours pertinente, merci de la mettre à jour.
+          close-issue-message: "Fermée automatiquement pour inactivité. Réouvrez-la si le problème est toujours présent."
+          close-pr-message: "Fermée automatiquement pour inactivité. Réouvrez-la si vous souhaitez continuer."
+          days-before-stale: 30
+          days-before-close: 7
+          stale-issue-label: 'stale'
+          stale-pr-label: 'stale'
+          exempt-issue-labels: 'pinned,security,in-progress'
+          exempt-pr-labels: 'in-progress'
