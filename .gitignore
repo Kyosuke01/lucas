@@ -48,6 +48,7 @@ weights/
 data/
 logs/
 *.db
+.credentials.json
 *.sqlite
 *.sqlite3
 
