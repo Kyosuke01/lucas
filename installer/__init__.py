@@ -11,3 +11,5 @@ from .main import start_installer
 
 __version__ = "1.5.1"
 __author__ = "Kyosuke01"
+
+__all__ = ["start_installer"]

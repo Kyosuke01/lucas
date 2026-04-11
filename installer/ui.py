@@ -1,3 +1,5 @@
+# flake8: noqa: E501
+# ruff: noqa: E501
 HTML = r"""<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -101,8 +103,8 @@ body::before{content:''; position:fixed; top:0; left:0; width:100%; height:100%;
   top: 0; left: 0;
   width: 100%; height: 100%;
   background: radial-gradient(
-    800px circle at var(--mouse-x) var(--mouse-y), 
-    rgba(255, 255, 255, 0.08), 
+    800px circle at var(--mouse-x) var(--mouse-y),
+    rgba(255, 255, 255, 0.08),
     transparent 40%
   );
   z-index: 1;
@@ -475,25 +477,25 @@ async function onRecheck() {
       console.log('Timeout! Aborting /api/info request');
       controller.abort();
     }, 5000);
-    
+
     const resp = await fetch(API + '/api/info', { signal: controller.signal });
     clearTimeout(timeoutId);
     console.log('Got response:', resp.status);
-    
+
     if (!resp.ok) {
       console.error('HTTP error:', resp.status);
       throw new Error(`HTTP ${resp.status}`);
     }
-    
+
     const info = await resp.json();
     console.log('Parsed JSON:', info);
-    
+
     document.getElementById('greeting').textContent = info.greeting || 'LUCAS';
     updateLed('led-docker', info.docker);
     updateLed('led-ollama', info.ollama);
     updateLed('led-web',    info.webui);
-    
-    
+
+
     if (info.env_exists) {
       console.log('Installation found, showing control section');
       document.getElementById('control-section').style.display = 'block';
@@ -532,23 +534,23 @@ function loadModels() {
 function renderModels(installed) {
   const container = document.getElementById('models-container');
   container.innerHTML = '';
-  
+
   MODELS.forEach(m => {
     // Vérifier si le modèle cible (renommé) est installé
     const isInstalled = installed.some(n => n.toLowerCase() === m.target.toLowerCase());
     const card = document.createElement('div');
     card.className = 'mcard'; // Suppression de 'glass' car intégré au CSS mcard
-    
+
     // Ajout du listener pour le halo et le point de zoom
     card.onmousemove = (e) => {
       const rect = card.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
-      
+
       // On met à jour les variables CSS pour le gradient
       card.style.setProperty('--mouse-x', `${x}px`);
       card.style.setProperty('--mouse-y', `${y}px`);
-      
+
       // Optionnel : change le centre du zoom pour qu'il soit "sous la souris"
       card.style.transformOrigin = `${(x / rect.width) * 100}% ${(y / rect.height) * 100}%`;
     };
@@ -591,8 +593,8 @@ function doModelAction(action, source, target) {
 }
 
 // -- Logs --------
-function appendLog(line) { 
-  appendLogTo(currentLogId, line); 
+function appendLog(line) {
+  appendLogTo(currentLogId, line);
   // Debug: log dans la console aussi
   console.log('Log appended to', currentLogId, ':', line);
 }
@@ -603,19 +605,19 @@ function appendLogTo(id, line) {
     console.warn('Log container not found:', id);
     return;
   }
-  
+
   const div = document.createElement('div');
   div.textContent = '> ' + line;
   div.style.marginBottom = '4px';
   div.style.wordBreak = 'break-word';
-  
+
   // Colorisation selon le contenu
   if (line.includes('✅') || line.includes('[OK]') || line.includes('🎉')) {
     div.style.color = 'var(--success)';
-  } 
+  }
   else if (line.includes('[ERROR]') || line.includes('❌')) {
     div.style.color = 'var(--error)';
-  } 
+  }
   else if (line.includes('[LUCAS]')) {
     div.style.color = 'var(--accent)';
   }
@@ -624,9 +626,9 @@ function appendLogTo(id, line) {
     div.style.color = 'var(--success)';
     div.style.fontWeight = '600';
   }
-  
+
   log.appendChild(div);
-  
+
   // Force scroll vers le bas
   setTimeout(() => {
     log.scrollTop = log.scrollHeight;
