@@ -24,10 +24,8 @@ services:
     environment:
       OLLAMA_BASE_URL: http://${OLLAMA_HOST:-ollama}:${OLLAMA_PORT:-11434}
       WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY}
-      ENABLE_SIGNUP: ${ENABLE_SIGNUP:-false}
-      WEBUI_ADMIN_EMAIL: ${WEBUI_ADMIN_EMAIL:-admin@lucas.local}
-      WEBUI_ADMIN_PASSWORD: ${WEBUI_ADMIN_PASSWORD}
-      WEBUI_ADMIN_NAME: ${WEBUI_ADMIN_NAME:-Admin}
+      ENABLE_SIGNUP: ${ENABLE_SIGNUP:-true}
+
       WEBUI_NAME: "LUCAS"
       WEBUI_URL: "http://localhost:8080"
       ENABLE_LOGIN_FORM: "true"

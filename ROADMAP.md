@@ -37,7 +37,7 @@
 | Sélection guidée du profil matériel (Lite / Standard / Plus / Pro) | ✅ |
 | Protection re-download si modèle déjà configuré | ✅ |
 | Healthcheck Ollama avec retry HTTP (`/api/tags`) | ✅ |
-| Création automatique du compte admin Open WebUI au 1er démarrage | ✅ |
+| Création du compte administrateur par l'utilisateur sur Open WebUI | ✅ |
 | Personnalisation Open WebUI (nom LUCAS, locale fr) | ✅ |
 | `.env.example` documenté avec toutes les variables | ✅ |
 | `WEBUI_SECRET_KEY` généré automatiquement | ✅ |
@@ -124,8 +124,7 @@
 | Élément | Statut |
 |---------|--------|
 | `WEBUI_SECRET_KEY` généré automatiquement | ✅ |
-| Mot de passe admin généré automatiquement | ✅ |
-| `ENABLE_SIGNUP=false` par défaut | ✅ |
+| `ENABLE_SIGNUP=true` par défaut (l'utilisateur crée son propre compte) | ✅ |
 | `.env` exclu du dépôt Git (`.gitignore`) | ✅ |
 | Liste blanche d'actions (`LUCAS_ACTION_WHITELIST`) | 🔲 Phase 3 |
 | Confirmation pour actions sensibles (`LUCAS_ACTION_CONFIRM`) | 🔲 Phase 3 |
