@@ -172,6 +172,30 @@ class LucasHandler(http.server.BaseHTTPRequestHandler):
             def _run():
                 _log("[LUCAS] 🚀 Démarrage des services...")
                 _log("[LUCAS] ⏳ Initialisation...")
+
+                # Vérifier que Docker est installé
+                if not find_docker():
+                    _log("[LUCAS] ❌ Docker est introuvable sur ce système.")
+                    _log("[LUCAS] 👉 Installez Docker Desktop et relancez.")
+                    action_result["ok"] = False
+                    action_done.set()
+                    return
+
+                # Vérifier que le daemon Docker est bien démarré
+                try:
+                    kwargs = {"capture_output": True, "timeout": 3}
+                    if platform.system().lower() == "windows":
+                        kwargs["creationflags"] = 0x08000000
+                    r = subprocess.run(["docker", "info"], **kwargs)
+                    if r.returncode != 0:
+                        raise RuntimeError("daemon non disponible")
+                except Exception:
+                    _log("[LUCAS] ❌ Docker Desktop n'est pas démarré.")
+                    _log("[LUCAS] 👉 Lancez Docker Desktop, attendez qu'il soit prêt, puis réessayez.")
+                    action_result["ok"] = False
+                    action_done.set()
+                    return
+
                 ok = run_docker_compose("start")
                 action_result["ok"] = ok
                 if ok:
