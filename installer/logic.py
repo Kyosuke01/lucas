@@ -237,17 +237,17 @@ def run_docker_compose(action, extra_params=None):
     if extra_params is None:
         extra_params = {}
     is_win = platform.system().lower() == "windows"
-    compose_cmd = ["docker", "compose"]
+    compose_cmd = ["docker", "compose", "-p", "lucas"]
     root = Path(__file__).parent.parent
 
     if action == "start":
         _log("[LUCAS] 🚀 Démarrage des services LUCAS...")
         _log("[LUCAS] ⏳ Initialisation de Docker Compose...")
-        cmd = compose_cmd + ["up", "-d"]
+        cmd = compose_cmd + ["up", "-d", "--remove-orphans", "--force-recreate"]
     elif action == "stop":
         _log("[LUCAS] 🛑 Arrêt des services LUCAS...")
         _log("[LUCAS] ⏳ Fermeture des conteneurs...")
-        cmd = compose_cmd + ["down"]
+        cmd = compose_cmd + ["down", "--remove-orphans"]
     elif action == "install":
         _log("[LUCAS] 📦 Installation initiale des services...")
         _log("[LUCAS] ⏳ Démarrage d'Ollama...")
@@ -264,6 +264,10 @@ def run_docker_compose(action, extra_params=None):
         }
         if is_win:
             kwargs["creationflags"] = 0x08000000
+        _log(f"[DEBUG] CWD: {root}")
+        _log(
+            f"[DEBUG] docker-compose.yml exists: {(root / 'docker-compose.yml').exists()}"
+        )
 
         process = subprocess.Popen(cmd, **kwargs)
         for line in process.stdout:
