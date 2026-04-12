@@ -191,7 +191,9 @@ class LucasHandler(http.server.BaseHTTPRequestHandler):
                         raise RuntimeError("daemon non disponible")
                 except Exception:
                     _log("[LUCAS] ❌ Docker Desktop n'est pas démarré.")
-                    _log("[LUCAS] 👉 Lancez Docker Desktop, attendez qu'il soit prêt, puis réessayez.")
+                    _log(
+                        "[LUCAS] 👉 Lancez Docker Desktop, attendez qu'il soit prêt, puis réessayez."
+                    )
                     action_result["ok"] = False
                     action_done.set()
                     return

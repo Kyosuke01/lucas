@@ -265,7 +265,9 @@ def run_docker_compose(action, extra_params=None):
         if is_win:
             kwargs["creationflags"] = 0x08000000
         _log(f"[DEBUG] CWD: {root}")
-        _log(f"[DEBUG] docker-compose.yml exists: {(root / 'docker-compose.yml').exists()}")
+        _log(
+            f"[DEBUG] docker-compose.yml exists: {(root / 'docker-compose.yml').exists()}"
+        )
 
         process = subprocess.Popen(cmd, **kwargs)
         for line in process.stdout:
