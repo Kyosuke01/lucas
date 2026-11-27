@@ -412,8 +412,16 @@ const companion = (() => {
   return {
     think: () => { part('.face').removeAttribute('transform'); become('thinking'); },
     talk: () => { if (activity !== 'talking') become('talking'); },
-    listen: (typing) => { if (activity === 'idle') show(typing ? 'attentive' : 'idle'); rest(); },
-    done: (success) => { become('idle'); if (success) { feel('happy'); hop(); } },
+    listen: (typing) => {
+      if (activity === 'idle') show(typing ? 'attentive' : 'idle');
+      rest();
+    },
+    done: (success) => {
+      become('idle');
+      if (!success) return;
+      feel('happy');
+      hop();
+    },
     worry: () => {
       feel('sad', 2600);
       move('.body', [{ transform: 'translateX(0)' }, { transform: 'translateX(-2px)' }, { transform: 'translateX(2px)' },
