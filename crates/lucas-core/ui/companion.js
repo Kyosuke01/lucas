@@ -71,7 +71,12 @@ const companion = (() => {
   // Après deux minutes sans rien, il s'endort.
   function rest() {
     clearTimeout(drowsy);
-    drowsy = setTimeout(() => activity === 'idle' && show('asleep'), 120000);
+    drowsy = setTimeout(() => {
+      if (activity !== 'idle') return;
+      // Il s'arrête de marcher avant de s'endormir.
+      pastime('rest', Infinity);
+      show('asleep');
+    }, 120000);
   }
 
   function become(next) {
@@ -127,7 +132,11 @@ const companion = (() => {
 
   // Les yeux suivent le curseur. L'attribut `transform` est permis par la CSP.
   window.addEventListener('pointermove', (event) => {
-    if (root.classList.contains('asleep')) show(activity);
+    if (root.classList.contains('asleep')) {
+      show(activity);
+      // Au réveil, il reprend ses activités après une courte pause.
+      pastime('stand', 1);
+    }
     rest();
     if (still.matches || activity === 'thinking') return;
     const box = root.getBoundingClientRect();
