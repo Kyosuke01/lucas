@@ -41,10 +41,6 @@ weights/
 *.bin
 *.onnx
 
-# Front-end et outillage Node (commitlint)
-node_modules/
-package-lock.json
-
 # Outils d'assistance au code (IA)
 .claude/
 CLAUDE.local.md
