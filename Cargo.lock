@@ -564,7 +564,10 @@ name = "lucas-core"
 version = "0.2.0"
 dependencies = [
  "axum",
+ "base64 0.22.1",
  "futures-util",
+ "http-body-util",
+ "libc",
  "reqwest",
  "serde",
  "serde_json",
