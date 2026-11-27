@@ -67,7 +67,7 @@
         <textarea id="input" rows="1" placeholder="Écrire à LUCAS" aria-label="Message"></textarea>
         <div class="toolbar">
           <button type="button" class="ghost" id="attach" aria-label="Joindre un fichier" title="Joindre un fichier"><svg class="icon" aria-hidden="true"><use href="#i-clip"/></svg></button>
-          <input id="files" type="file" multiple hidden>
+          <input id="files" type="file" multiple hidden aria-label="Fichiers à joindre">
           <label class="select">
             <select id="model" aria-label="Modèle utilisé"></select>
             <svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg>
@@ -195,7 +195,7 @@
 
   <dialog id="viewer" aria-labelledby="viewer-title">
     <form method="dialog">
-      <h2 id="viewer-title"></h2>
+      <h2 id="viewer-title">Aperçu</h2>
       <div id="viewer-body"></div>
       <menu><button class="secondary">Fermer</button></menu>
     </form>

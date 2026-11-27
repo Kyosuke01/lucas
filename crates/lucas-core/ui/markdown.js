@@ -84,7 +84,9 @@ const markdown = (() => {
       if (c === 'h' && !isWord(text[i - 1])) {
         const url = /^https?:\/\/[^\s<>"'`]+/.exec(text.slice(i, i + 2000));
         if (url) {
-          const href = url[0].replace(/[.,;:!?)\]*_]+$/, '');
+          let end = url[0].length;
+          while (end > 0 && '.,;:!?)]*_'.includes(url[0][end - 1])) end -= 1;
+          const href = url[0].slice(0, end);
           push({ type: 'link', href, children: [href] });
           i += href.length;
           continue;
@@ -114,18 +116,19 @@ const markdown = (() => {
 
   // ── Blocs ──────────────────────────────────────────────────────────────────
   const FENCE = /^ {0,3}(`{3,}|~{3,})\s*([\w+#.-]*)/;
-  const HEADING = /^ {0,3}(#{1,6})\s+(.*)$/;
+  const HEADING = /^ {0,3}(#{1,6})\s(.*)$/;
   const RULE = /^ {0,3}([-*_])(\s*\1){2,}\s*$/;
   const QUOTE = /^ {0,3}> ?/;
-  const ITEM = /^( *)([-*+]|\d{1,9}[.)])( +|$)(.*)$/;
-  const TABLE_RULE = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
+  const ITEM = /^( *)([-*+]|\d{1,9}[.)])(?: |$)(.*)$/;
+  // Ligne de séparation d'un tableau : des tirets, deux-points et barres seulement.
+  const isTableRule = (line) => /^[\s|:-]+$/.test(line) && line.includes('-');
 
   function cells(line) {
     return line.trim().replace(/^\|/, '').replace(/\|$/, '')
       .split(/(?<!\\)\|/).map((cell) => cell.trim().replaceAll('\\|', '|'));
   }
   const tableStarts = (lines, i) => lines[i].includes('|') && lines[i + 1]?.includes('-')
-    && lines[i + 1].includes('|') && TABLE_RULE.test(lines[i + 1]);
+    && lines[i + 1].includes('|') && isTableRule(lines[i + 1]);
   const interrupts = (lines, i) => [FENCE, HEADING, RULE, QUOTE, ITEM].some((r) => r.test(lines[i]))
     || tableStarts(lines, i);
 
@@ -188,7 +191,7 @@ const markdown = (() => {
       const spaces = line.length - line.trimStart().length;
       if (match && match[1].length <= indent + 1 && !RULE.test(line)) {
         if (match[1].length < indent || /\d/.test(match[2]) !== ordered) break;
-        body = [match[4]];
+        body = [match[3].trimStart()];
         width = match[1].length + match[2].length + 1;
         items.push(body);
       } else if (!line.trim()) {
@@ -208,7 +211,7 @@ const markdown = (() => {
     nodes.push({
       type: 'list',
       ordered,
-      start: ordered ? parseInt(first[2], 10) : 1,
+      start: ordered ? Number.parseInt(first[2], 10) : 1,
       items: items.map((item) => blocks(item, depth + 1)),
     });
     return i;

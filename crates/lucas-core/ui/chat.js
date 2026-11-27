@@ -16,7 +16,9 @@ const MAX_THINKING = 20000;
 const MAX_VIEWS = 8;
 
 const byId = (id) => conversations.find((c) => c.id === id);
-const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+// Identifiant unique : aléatoire si le navigateur le permet, sinon un compteur.
+let idCounter = 0;
+const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${(idCounter += 1)}`;
 const count = (value) => value.toLocaleString('fr-FR');
 
 // ── Ce que le modèle reçoit ──────────────────────────────────────────────────

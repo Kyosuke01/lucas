@@ -684,7 +684,7 @@ $('export').onclick = () => {
 
 $('purge').onclick = async () => {
   if (!(await confirmDelete('Tout effacer ?', 'Toutes les discussions et tous les groupes de ce navigateur seront supprimés.'))) return;
-  for (const id of [...runs.keys()]) dropRun(id);
+  for (const id of runs.keys()) dropRun(id);
   previews.clear();
   conversations = [];
   groups = [];
