@@ -2,7 +2,11 @@
 //! `@api:<nom de l'API>:<modèle>`.
 //! `@` est interdit dans un nom Ollama : aucune confusion possible.
 
-use crate::{App, ollama::Failure, settings::Provider};
+use crate::{
+    App,
+    ollama::{BLIND_MODEL, BLIND_NOTICE, Failure},
+    settings::Provider,
+};
 use axum::{
     body::Body,
     http::{StatusCode, header},
@@ -104,8 +108,32 @@ fn translate(line: &str) -> Option<Value> {
     if !value["error"].is_null() {
         return Some(json!({ "error": "L'API a signalé une erreur." }));
     }
-    let content = value["choices"][0]["delta"]["content"].as_str()?;
-    Some(json!({ "message": { "content": content } }))
+    let delta = &value["choices"][0]["delta"];
+    // Le nom du champ de réflexion varie d'un service à l'autre.
+    let thinking = delta["reasoning_content"]
+        .as_str()
+        .or_else(|| delta["reasoning"].as_str())
+        .filter(|text| !text.is_empty());
+    let content = delta["content"].as_str();
+    match (content, thinking) {
+        (None, None) => None,
+        (content, None) => Some(json!({ "message": { "content": content } })),
+        (content, thinking) => Some(json!({ "message": {
+            "content": content.unwrap_or_default(), "thinking": thinking } })),
+    }
+}
+
+/// Met les images au format OpenAI.
+fn with_images(message: &Value) -> Value {
+    let Some(images) = message["images"].as_array() else {
+        return message.clone();
+    };
+    let mut parts = vec![json!({ "type": "text", "text": message["content"] })];
+    parts.extend(images.iter().filter_map(Value::as_str).map(|data| {
+        let url = format!("data:image/jpeg;base64,{data}");
+        json!({ "type": "image_url", "image_url": { "url": url } })
+    }));
+    json!({ "role": message["role"], "content": parts })
 }
 
 pub async fn chat(
@@ -117,20 +145,37 @@ pub async fn chat(
     let (provider, model) = resolve(app, target)?;
     let name = &provider.name;
 
-    let mut body = json!({ "model": model, "messages": messages, "stream": true });
+    let pictured = messages.iter().any(|m| m["images"].is_array());
+    let shown: Vec<Value> = messages.iter().map(with_images).collect();
+    let mut body = json!({ "model": model, "messages": shown, "stream": true });
     if let Some(temperature) = temperature {
         body["temperature"] = json!(temperature);
     }
-    let request = app
-        .http
-        .post(format!("{}/chat/completions", provider.url))
-        .json(&body);
-    let response = with_key(request, &provider.key).send().await.map_err(|_| {
+    let post = |body: &Value| {
+        let url = format!("{}/chat/completions", provider.url);
+        with_key(app.http.post(url).json(body), &provider.key).send()
+    };
+    let unreachable = |_| {
         Failure(
             StatusCode::BAD_GATEWAY,
             format!("L'API {name} ne répond pas."),
         )
-    })?;
+    };
+    let mut response = post(&body).await.map_err(unreachable)?;
+    // Un modèle sans vision refuse les images : nouvel essai avec le seul texte.
+    let refused = [400, 415, 422].contains(&response.status().as_u16());
+    let blind = pictured && refused;
+    if blind {
+        let plain = messages.iter().map(|m| {
+            let mut content = m["content"].as_str().unwrap_or_default().to_string();
+            if m["images"].is_array() {
+                content = format!("{content}\n\n{BLIND_MODEL}");
+            }
+            json!({ "role": m["role"], "content": content })
+        });
+        body["messages"] = plain.collect();
+        response = post(&body).await.map_err(unreachable)?;
+    }
     if !response.status().is_success() {
         // Le corps n'est pas relayé : certaines API y recopient une partie de la clé.
         let message = format!("L'API {name} a répondu {}.", response.status());
@@ -139,13 +184,14 @@ pub async fn chat(
 
     let mut buffer = Vec::new();
     let mut finished = false;
+    let mut notice = blind.then(|| format!("{}\n", json!({ "info": BLIND_NOTICE })));
     // `None` marque la fin du flux.
     let chunks = response
         .bytes_stream()
         .map(Some)
         .chain(stream::iter([None]));
     let lines = chunks.map(move |chunk| {
-        let mut out = String::new();
+        let mut out = notice.take().unwrap_or_default();
         let end_of_stream = chunk.is_none();
         match chunk {
             Some(Ok(bytes)) => buffer.extend_from_slice(&bytes),
@@ -176,4 +222,31 @@ pub async fn chat(
         Body::from_stream(lines),
     )
         .into_response())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn passes_reasoning_apart_from_the_answer() {
+        let delta = |delta: Value| {
+            translate(&format!(
+                "data: {}",
+                json!({ "choices": [{ "delta": delta }] })
+            ))
+        };
+        for field in ["reasoning_content", "reasoning"] {
+            assert_eq!(
+                delta(json!({ field: "hmm" })),
+                Some(json!({ "message": { "content": "", "thinking": "hmm" } })),
+                "{field}"
+            );
+        }
+        assert_eq!(
+            delta(json!({ "content": "oui", "reasoning": "" })),
+            Some(json!({ "message": { "content": "oui" } }))
+        );
+        assert_eq!(delta(json!({})), None);
+    }
 }

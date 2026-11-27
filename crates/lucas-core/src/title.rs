@@ -48,12 +48,18 @@ pub async fn write(
     let answer = match request.model.strip_prefix(providers::PREFIX) {
         Some(target) => providers::complete(&app, target, messages).await?,
         None => {
-            let body = json!({
+            let mut body = json!({
                 "model": request.model,
                 "messages": messages,
                 "stream": false,
+                "think": false,
                 "options": { "temperature": 0.2, "num_predict": 24 },
             });
+            // La même fenêtre que la discussion : sinon Ollama recharge le modèle,
+            // et les réponses en cours dans d'autres discussions s'attendent.
+            if let Some(context) = app.settings.get().context {
+                body["options"]["num_ctx"] = json!(context);
+            }
             let url = format!("{}/api/chat", app.config.ollama_url);
             let response: Value = crate::ollama::send(app.http.post(url).json(&body))
                 .await?
