@@ -27,6 +27,10 @@
     <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></symbol>
     <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></symbol>
     <symbol id="i-mark" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle class="core" cx="12" cy="12" r="3.5"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M9 4h6l-1 6 3 3v2H7v-2l3-3zM12 15v5"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="i-clip" viewBox="0 0 24 24"><path d="M20 11l-8.5 8.5a5 5 0 0 1-7-7L13 4a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4L14 7.5"/></symbol>
   </svg>
 
   <aside id="sidebar">
@@ -36,6 +40,7 @@
       <button class="ghost drawer-only" id="close-menu" type="button" aria-label="Fermer le menu"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
     </div>
     <button class="row" id="new-chat" type="button"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Nouvelle conversation</button>
+    <button class="row" id="new-group" type="button"><svg class="icon" aria-hidden="true"><use href="#i-folder"/></svg>Nouveau groupe</button>
     <nav id="history" aria-label="Conversations"></nav>
     <div class="foot">
       <button class="row" id="show-models" type="button"><svg class="icon" aria-hidden="true"><use href="#i-box"/></svg>Modèles</button>
@@ -56,9 +61,13 @@
     <section id="chat">
       <div id="messages"></div>
       <form id="composer" class="column">
+        <div id="commands" aria-label="Commandes" hidden></div>
         <p id="activity" class="activity" aria-live="polite"></p>
+        <div id="attachments" hidden></div>
         <textarea id="input" rows="1" placeholder="Écrire à LUCAS" aria-label="Message"></textarea>
         <div class="toolbar">
+          <button type="button" class="ghost" id="attach" aria-label="Joindre un fichier" title="Joindre un fichier"><svg class="icon" aria-hidden="true"><use href="#i-clip"/></svg></button>
+          <input id="files" type="file" multiple hidden>
           <label class="select">
             <select id="model" aria-label="Modèle utilisé"></select>
             <svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg>
@@ -127,6 +136,7 @@
                 <input id="temperature-range" type="range" aria-label="Température">
                 <div class="ticks" id="temperature-ticks" aria-hidden="true"></div>
               </div>
+              <p class="hint muted" id="temperature-words"></p>
             </div>
             <div class="dial">
               <div class="dial-head">
@@ -183,7 +193,20 @@
     </form>
   </dialog>
 
+  <dialog id="viewer" aria-labelledby="viewer-title">
+    <form method="dialog">
+      <h2 id="viewer-title"></h2>
+      <div id="viewer-body"></div>
+      <menu><button class="secondary">Fermer</button></menu>
+    </form>
+  </dialog>
+
   <script src="/companion.js"></script>
+  <script src="/markdown.js"></script>
   <script src="/app.js"></script>
+  <script src="/previews.js"></script>
+  <script src="/history.js"></script>
+  <script src="/chat.js"></script>
+  <script src="/attachments.js"></script>
 </body>
 </html>

@@ -77,6 +77,11 @@ async fn serves_the_interface() {
         ("/", "text/html", "<title>LUCAS</title>"),
         ("/app.css", "text/css", ":root"),
         ("/app.js", "text/javascript", "/api/models"),
+        ("/chat.js", "text/javascript", "/api/chat"),
+        ("/history.js", "text/javascript", "renderHistory"),
+        ("/previews.js", "text/javascript", "indexedDB"),
+        ("/attachments.js", "text/javascript", "/api/files"),
+        ("/markdown.js", "text/javascript", "const markdown"),
         ("/favicon.svg", "image/svg+xml", "<svg"),
         ("/companion.js", "text/javascript", "companion"),
     ] {
@@ -90,8 +95,8 @@ async fn serves_the_interface() {
         assert_eq!(header("cache-control"), "no-cache");
         assert_eq!(
             header("content-security-policy"),
-            "default-src 'self'; frame-ancestors 'none'; base-uri 'none'; \
-             form-action 'self'"
+            "default-src 'self'; img-src 'self' blob:; media-src 'self' blob:; \
+             frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
         );
         let bytes = axum::body::to_bytes(response.into_body(), 1 << 20)
             .await
