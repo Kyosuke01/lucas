@@ -2,146 +2,63 @@ name: CI
 
 on:
   push:
-    branches:
-      - '**'
-    tags-ignore:
-      - '**'
+    branches: ['**']
   pull_request:
-    branches:
-      - main
+    branches: [main, preprod]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # ─────────────────────────────────────────
-  # 1. Lint & format check
-  # ─────────────────────────────────────────
   lint:
     name: 🔍 Lint & Format
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - run: rustup component add rustfmt clippy
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: node --check crates/lucas-core/ui/app.js && node --check crates/lucas-core/ui/companion.js
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install linting tools
-        run: pip install ruff black
-
-      - name: Run Ruff
-        run: |
-          if find . -name '*.py' -not -path './.git/*' | grep -q .; then
-            ruff check . --output-format=github
-          else
-            echo "No Python files yet — skipping Ruff."
-          fi
-
-      - name: Run Black
-        run: |
-          if find . -name '*.py' -not -path './.git/*' | grep -q .; then
-            black --check --diff .
-          else
-            echo "No Python files yet — skipping Black."
-          fi
-
-  # ─────────────────────────────────────────
-  # 2. Tests unitaires
-  # ─────────────────────────────────────────
   test:
     name: 🧪 Tests
-    runs-on: ubuntu-latest
     needs: lint
-    strategy:
-      matrix:
-        python-version: ['3.11', '3.12']
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install dependencies
-        run: |
-          [ -f requirements.txt ] && pip install -r requirements.txt || echo "No requirements.txt yet"
-          [ -f requirements-dev.txt ] && pip install -r requirements-dev.txt || echo "No requirements-dev.txt yet"
-
-      - name: Run pytest
-        run: |
-          # Exit code 5 = no tests collected, which is expected at bootstrap stage
-          pytest tests/ -v --tb=short || code=$?; if [ "${code:-0}" -eq 5 ]; then echo "No tests yet — OK."; elif [ "${code:-0}" -ne 0 ]; then exit $code; fi
-
-  # ─────────────────────────────────────────
-  # 3. Validation Docker Compose
-  # ─────────────────────────────────────────
-  docker-validate:
-    name: 🐳 Docker Compose Validate
     runs-on: ubuntu-latest
-    needs: lint
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - run: cargo test --workspace --locked
 
-      - name: Create dummy .env for CI
-        run: cp .env.example .env
+  docker:
+    name: 🐳 Docker
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose config --quiet
+      - run: docker compose build lucas-core
 
-      - name: Validate docker-compose
-        run: |
-          if [ -f "docker-compose.yml" ]; then
-            docker compose config --quiet
-            echo "✅ docker-compose.yml is valid"
-          else
-            echo "⚠️  docker-compose.yml not found yet — skipping."
-          fi
-
-  # ─────────────────────────────────────────
-  # 4. Security scan
-  # ─────────────────────────────────────────
   security:
     name: 🔒 Security Scan
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
+      - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # ─────────────────────────────────────────
-  # 5. Conventional commits (PR only)
-  # ─────────────────────────────────────────
   commitlint:
     name: 📝 Conventional Commits
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
-
-      - name: Install commitlint
-        run: npm install --save-dev @commitlint/cli @commitlint/config-conventional
-
-      - name: Lint commits
-        run: |
-          npx commitlint \
-            --from ${{ github.event.pull_request.base.sha }} \
-            --to ${{ github.event.pull_request.head.sha }} \
-            --verbose
+      - run: npm install --no-save @commitlint/cli @commitlint/config-conventional
+      - run: npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
