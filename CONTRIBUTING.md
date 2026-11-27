@@ -14,6 +14,6 @@
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-node --check crates/lucas-core/ui/app.js
-node --check crates/lucas-core/ui/companion.js
+for file in crates/lucas-core/ui/*.js; do node --check "$file"; done
+node --test crates/lucas-core/ui/tests/*.test.js
 ```

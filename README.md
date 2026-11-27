@@ -12,7 +12,9 @@ cd lucas
 docker compose up -d
 ```
 
-Ouvrir <http://localhost:8080>. Le premier démarrage télécharge le modèle (environ 5 Go).
+Ouvrir <http://localhost:8080>. Taper `/compact` dans une discussion la résume pour
+libérer la mémoire du modèle. Pour que LUCAS voie les images, ajouter dans « Modèles »
+un modèle « vision » (par exemple `qwen2.5vl:3b`). Le premier démarrage télécharge le modèle (environ 5 Go).
 
 Arrêter : `docker compose down`. Mettre à jour : `docker compose up -d --build`.
 
