@@ -9,7 +9,12 @@ function load(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
 }
 function save(key, value) {
-  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* ignoré */ }
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    // Navigation privée : ignoré. Stockage plein : le dire, sinon tout serait perdu en silence.
+    if (error.name === 'QuotaExceededError') notice('Stockage du navigateur plein : supprimez d\'anciennes discussions.');
+  }
 }
 
 // Chaque écriture repart du stockage : un autre onglet a pu le modifier.
@@ -23,7 +28,6 @@ function persist(conversation) {
 
 let conversations = load(STORE, []);
 let current = null;     // conversation affichée, ou null pour une nouvelle
-let generation = null;  // { controller, conversation } pendant une réponse
 
 function element(tag, className, text) {
   const node = document.createElement(tag);
@@ -42,12 +46,6 @@ function iconButton(icon, label, onClick) {
   return button;
 }
 
-function mark() {
-  const holder = element('span');
-  holder.innerHTML = '<svg class="icon mark" aria-hidden="true"><use href="#i-mark"/></svg>';
-  return holder.firstChild;
-}
-
 // Signe animé d'une réponse. Au repos, il est identique au signe fixe.
 // `pathLength=100` permet d'exprimer les arcs en pourcentage du cercle.
 function liveMark() {
@@ -62,22 +60,6 @@ function liveMark() {
     <circle class="core" cx="12" cy="12" r="3.5"/>
   </svg>`;
   return holder.firstChild;
-}
-
-// Une onde part du cœur à l'arrivée du texte, au plus quatre fois par seconde.
-let lastBeat = 0;
-function beat(message) {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  if (performance.now() - lastBeat < 260) return;
-  lastBeat = performance.now();
-  message.querySelector('.live .halo')?.animate(
-    [{ transform: 'scale(.4)', opacity: 0.9 }, { transform: 'scale(1.75)', opacity: 0 }],
-    { duration: 760, easing: 'cubic-bezier(.2,.7,.3,1)' },
-  );
-  message.querySelector('.live .core')?.animate(
-    [{ transform: 'scale(1)' }, { transform: 'scale(1.38)', offset: 0.3 }, { transform: 'scale(1)' }],
-    { duration: 420, easing: 'ease-out' },
-  );
 }
 
 function drawer(open) {
@@ -104,11 +86,14 @@ const confirmDelete = (title, text) => modal({ title, text, ok: 'Supprimer', can
 
 const HELP = {
   temperature: {
-    title: 'Style des réponses',
+    title: 'Température',
     text: [
-      'Précis : réponses régulières, idéales pour le code ou les faits.',
-      'Équilibré : un bon compromis pour la plupart des usages.',
-      'Créatif : réponses plus variées, mais moins fiables.',
+      'La température va de 0 à 2. Elle règle le choix du mot suivant : le modèle prend les mots les plus probables, ou accepte d\'autres mots.',
+      '0 : toujours le mot le plus probable. Réponses identiques d\'un essai à l\'autre, parfois répétitives.',
+      '0,2 à 0,6 : très régulier et sûr. Convient au code, aux faits et aux extractions.',
+      '0,8 : valeur conseillée, un bon équilibre pour la plupart des usages.',
+      '1 à 1,4 : tournures plus variées, moins prévisibles.',
+      '1,5 à 2 : très inventif, mais risque de contresens et de phrases incohérentes.',
       'Par défaut : on garde le réglage du modèle.',
     ],
   },
@@ -125,13 +110,16 @@ const HELP = {
 // Curseurs à paliers. Chaque palier affiche sa valeur exacte ; la pastille « Recommandé » marque le réglage conseillé.
 const DIALS = {
   temperature: {
-    stops: [0, 0.3, 0.7, 1.2, 2],
-    recommended: 0.7,
-    format: (v) => v.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 2 }),
+    // De 0 à 2 par pas de 0,1 ; seules les valeurs rondes portent une étiquette.
+    stops: Array.from({ length: 21 }, (_, i) => Math.round(i) / 10),
+    recommended: 0.8,
+    format: (v) => (Math.round(v * 10) % 5 === 0 ? v.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) : ''),
     help: (v) => {
-      if (v < 0.5) return 'Réponses précises et régulières.';
-      if (v < 1.5) return 'Bon compromis pour la plupart des usages.';
-      return 'Réponses variées, moins fiables.';
+      if (v === 0) return '0 : toujours le mot le plus probable, réponses identiques d\'un essai à l\'autre.';
+      if (v <= 0.6) return `${v.toLocaleString('fr-FR')} : très régulier et sûr. Code, faits, extractions.`;
+      if (v <= 0.9) return `${v.toLocaleString('fr-FR')} : équilibre conseillé pour la plupart des usages.`;
+      if (v <= 1.4) return `${v.toLocaleString('fr-FR')} : tournures plus variées, moins prévisibles.`;
+      return `${v.toLocaleString('fr-FR')} : très inventif, risque de phrases incohérentes.`;
     },
   },
   context: {
@@ -157,7 +145,8 @@ for (const [name, dial] of Object.entries(DIALS)) {
       tick.classList.add('recommended');
       tick.title = 'Valeur conseillée';
     }
-    tick.append(element('span', 'value', dial.format(value)));
+    const label = dial.format(value);
+    if (label) tick.append(element('span', 'value', label));
     tick.onclick = () => { range.value = i; paint(name); };
     return tick;
   }));
@@ -170,7 +159,7 @@ function paint(name) {
   const index = Number($(`${name}-range`).value);
   const value = dial.stops[index];
   for (const tick of $(`${name}-ticks`).children) tick.classList.toggle('on', Number(tick.dataset.index) === index);
-  if (name === 'context') $('context-words').textContent = dial.help(value);
+  $(`${name}-words`).textContent = dial.help(value);
 }
 
 // Pose une valeur enregistrée sur le palier le plus proche.
@@ -225,7 +214,9 @@ async function readLines(response, onLine) {
     const lines = buffer.split('\n');
     buffer = done ? '' : lines.pop();
     for (const line of lines.filter((l) => l.trim())) {
-      const data = JSON.parse(line);
+      let data;
+      // Une ligne coupée par une interruption : l'erreur qui la suit compte.
+      try { data = JSON.parse(line); } catch { continue; }
       if (data.error) throw new Error(data.error);
       onLine(data);
     }
@@ -261,60 +252,6 @@ function renderLocation() {
   $('new-chat').classList.toggle('current', onChat && !current);
 }
 
-// Sans expression régulière : son coût exploserait sur de longues suites de lignes vides.
-function trimNewlines(text) {
-  let start = 0;
-  let end = text.length;
-  while (text[start] === '\n') start += 1;
-  while (end > start && text[end - 1] === '\n') end -= 1;
-  return text.slice(start, end);
-}
-
-// Texte brut, sauf les blocs de code. Jamais de HTML venant du modèle.
-function fill(node, text) {
-  const body = [];
-  text.split(/^```/m).forEach((part, index) => {
-    if (index % 2) {
-      body.push(element('pre', '', trimNewlines(part.replace(/^[\w+-]*\n/, ''))));
-    } else if (part.trim()) {
-      // Les sauts de ligne autour d'un bloc de code créeraient de grands vides.
-      body.push(element('p', '', trimNewlines(part)));
-    }
-  });
-  // Le signe est conservé : le recréer relancerait son animation à chaque mot.
-  // L'état affiché pendant la génération reste en haut, à côté du logo.
-  const state = node.querySelector(':scope > .state');
-  node.replaceChildren(node.querySelector(':scope > .live') || liveMark(), ...(state ? [state] : []), ...body);
-}
-
-function messageNode({ role, content, interrupted }) {
-  const node = element('div', `message ${role}`);
-  if (role === 'user') node.append(element('span', '', content));
-  else fill(node, content);
-  if (interrupted) node.append(element('p', 'cut', 'Réponse coupée à votre demande.'));
-  return node;
-}
-
-// Pendant la génération, l'état s'écrit à la fin de la réponse en cours.
-function showState(text) {
-  $('status').textContent = text;
-  const message = $('messages').lastElementChild;
-  if (!generation || !message?.classList.contains('assistant')) return;
-  let state = message.querySelector(':scope > .state');
-  if (!state) {
-    state = element('p', 'state');
-    message.prepend(state);
-  }
-  state.textContent = text;
-}
-
-// Résultat final d'une réponse : arrêtée, terminée ou en erreur.
-function reportOutcome(interrupted) {
-  if (interrupted) setActivity('Réponse interrompue.', true);
-  else if ($('notice').hidden) setActivity('Réponse terminée.', true);
-  else setActivity('Erreur pendant la réponse.');
-}
-
 // Ligne d'état sous la discussion : pour le résultat final, qui peut disparaître.
 let activityTimer;
 function setActivity(text, fade = false) {
@@ -324,131 +261,6 @@ function setActivity(text, fade = false) {
   if (fade) activityTimer = setTimeout(() => { $('activity').textContent = ''; }, 3000);
 }
 
-function renderMessages() {
-  const box = $('messages');
-  $('chat').classList.toggle('start', !current);
-  if (!current) {
-    const welcome = element('div', 'welcome');
-    welcome.append(mark(), element('p', '', 'Que puis-je faire pour vous ?'));
-    if (!$('model').value) {
-      welcome.append(element('small', '', 'Aucun modèle disponible. Au premier démarrage, le téléchargement peut prendre plusieurs minutes ; sinon, ajoutez-en un dans « Modèles ».'));
-    }
-    box.replaceChildren(welcome);
-    return;
-  }
-  box.replaceChildren(...current.messages.map(messageNode));
-  if (generation?.conversation === current) {
-    const writing = current.messages.at(-1).content;
-    box.lastElementChild.classList.add(writing ? 'writing' : 'thinking');
-  }
-  box.scrollTop = box.scrollHeight;
-}
-
-// Menu « … » d'une discussion, et discussion en cours de renommage.
-let menuOf = null;
-let renaming = null;
-
-function closeMenu() {
-  menuOf = null;
-  document.querySelector('.menu')?.remove();
-}
-document.addEventListener('pointerdown', (event) => {
-  if (menuOf && !event.target.closest('.menu, .more')) closeMenu();
-});
-document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && menuOf) closeMenu();
-});
-
-async function deleteConversation(conversation) {
-  if (!(await confirmDelete('Supprimer la discussion ?', `« ${conversation.title} » sera définitivement effacée.`))) return;
-  if (generation?.conversation === conversation) generation.controller.abort();
-  conversations = conversations.filter((c) => c !== conversation);
-  if (current === conversation) current = null;
-  save(STORE, load(STORE, []).filter((c) => c.id !== conversation.id));
-  render();
-}
-
-function menuItem(icon, text, onClick, danger = false) {
-  const item = element('button', danger ? 'danger' : '');
-  item.type = 'button';
-  item.setAttribute('role', 'menuitem');
-  item.innerHTML = `<svg class="icon" aria-hidden="true"><use href="#i-${icon}"/></svg>`;
-  item.append(text);
-  item.onclick = onClick;
-  return item;
-}
-
-function openMenu(entry, conversation) {
-  closeMenu();
-  menuOf = conversation;
-  const menu = element('div', 'menu');
-  menu.setAttribute('role', 'menu');
-  menu.append(
-    menuItem('edit', 'Renommer', () => {
-      closeMenu();
-      renaming = conversation;
-      renderHistory();
-    }),
-    menuItem('trash', 'Supprimer', () => { closeMenu(); void deleteConversation(conversation); }, true),
-  );
-  entry.append(menu);
-  menu.querySelector('button').focus();
-}
-
-// Champ à la place du titre : Entrée valide, Échap annule, sortir du champ valide aussi.
-function renameField(conversation) {
-  const input = element('input', 'rename');
-  input.value = conversation.title;
-  input.maxLength = 80;
-  input.setAttribute('aria-label', 'Nouveau titre de la discussion');
-  let done = false;
-  const finish = (keep) => {
-    if (done) return;
-    done = true;
-    const title = input.value.trim();
-    renaming = null;
-    if (keep && title && title !== conversation.title) {
-      conversation.title = title;
-      persist(conversation);
-    }
-    renderLocation();
-    renderHistory();
-  };
-  input.onkeydown = (event) => {
-    if (event.key === 'Enter') { event.preventDefault(); finish(true); }
-    if (event.key === 'Escape') finish(false);
-  };
-  input.onblur = () => finish(true);
-  return input;
-}
-
-function renderHistory() {
-  $('history').replaceChildren(...conversations.map((conversation) => {
-    const active = conversation === current && !$('chat').hidden;
-    const entry = element('div', active ? 'entry current' : 'entry');
-    if (renaming === conversation) {
-      const input = renameField(conversation);
-      entry.append(input);
-      queueMicrotask(() => { input.focus(); input.select(); });
-      return entry;
-    }
-    const open = element('button', 'row', conversation.title);
-    open.type = 'button';
-    if (conversation === current) open.setAttribute('aria-current', 'true');
-    open.onclick = () => { current = conversation; show('chat'); render(); };
-    const more = iconButton('more', 'Options de la discussion', () => {
-      if (menuOf === conversation) closeMenu();
-      else openMenu(entry, conversation);
-    });
-    more.classList.add('more');
-    more.setAttribute("aria-haspopup", "menu");
-    more.setAttribute("aria-expanded", String(menuOf === conversation));
-    entry.append(open, more);
-    if (menuOf === conversation) openMenu(entry, conversation);
-    return entry;
-  }));
-}
-
 function render() {
   renderLocation();
   renderHistory();
@@ -456,123 +268,6 @@ function render() {
   updateSend();
   renderDetails();
 }
-
-function updateSend() {
-  // Prévenir avant l'envoi quand le message quitte LUCAS.
-  const [kind, provider] = $('model').value.split(':');
-  $('external').hidden = kind !== '@api';
-  $('external').textContent = `Les messages de ce modèle sont envoyés à l'API « ${provider} ».`;
-  const button = $('send');
-  button.setAttribute('aria-label', generation ? 'Arrêter' : 'Envoyer');
-  button.querySelector('use').setAttribute('href', generation ? '#i-stop' : '#i-send');
-  button.classList.toggle('stop', Boolean(generation));
-  button.disabled = !generation && (!$('input').value.trim() || !$('model').value);
-}
-
-// ── Conversation ────────────────────────────────────────────────────────────
-
-async function send(text) {
-  const model = $('model').value;
-  if (!current) {
-    current = { id: `${Date.now()}-${Math.random()}`, title: text.slice(0, 60), messages: [] };
-    conversations.unshift(current);
-  }
-  const conversation = current;
-  conversation.messages.push({ role: 'user', content: text });
-  // Enregistré tout de suite : fermer l'onglet ne perd pas le message.
-  persist(conversation);
-  const history = conversation.messages.filter((m) => m.content);
-  const reply = { role: 'assistant', content: '' };
-  conversation.messages.push(reply);
-  const controller = new AbortController();
-  generation = { controller, conversation };
-  notice('');
-  companion.think();
-  render();
-  showState('En train de réfléchir…');
-
-  try {
-    const response = await api('/api/chat', 'POST', { model, messages: history }, controller.signal);
-    await readLines(response, (data) => {
-      reply.content += data.message?.content || '';
-      if (reply.content) {
-        companion.talk();
-        if ($('status').textContent !== 'En train d\'écrire…') showState('En train d\'écrire…');
-      }
-      if (current !== conversation) return;
-      const box = $('messages');
-      const follow = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
-      const message = box.lastElementChild;
-      fill(message, reply.content);
-      if (reply.content) {
-        message.classList.replace('thinking', 'writing');
-        beat(message);
-      }
-      if (follow) box.scrollTop = box.scrollHeight;
-    });
-  } catch (error) {
-    if (error.name !== 'AbortError') notice(readable(error));
-  }
-
-  // Coupée par l'utilisateur : on le signale, même si rien n'a été écrit.
-  const interrupted = controller.signal.aborted;
-  if (interrupted) reply.interrupted = true;
-  // Une réponse vide et non coupée n'est pas conservée.
-  if (!reply.content && !interrupted) conversation.messages.splice(conversation.messages.indexOf(reply), 1);
-  generation = null;
-  // Après une erreur, il reste inquiet.
-  if ($('notice').hidden) companion.done(Boolean(reply.content));
-  else { companion.done(false); companion.worry(); }
-  if (conversations.includes(conversation)) persist(conversation);
-  // Après la première réponse, pour ne pas la retarder.
-  if (reply.content && conversation.messages.length === 2) void summarize(conversation, model, text);
-  reportOutcome(interrupted);
-  render();
-  // Final : l'anneau se retrace une fois.
-  if (current === conversation && reply.content) {
-    $('messages').lastElementChild?.classList.add('done');
-  }
-}
-
-// Le début du message sert de titre tant que l'IA n'a pas répondu (ou échoue).
-async function summarize(conversation, model, message) {
-  try {
-    const { title } = await (await api('/api/title', 'POST', { model, message })).json();
-    // Supprimée entre-temps : ne pas la faire réapparaître.
-    if (!title || !load(STORE, []).some((c) => c.id === conversation.id)) return;
-    conversation.title = title;
-    const shown = conversations.find((c) => c.id === conversation.id);
-    if (shown) shown.title = title;
-    persist(shown || conversation);
-    renderLocation();
-    renderHistory();
-  } catch { /* le titre provisoire reste */ }
-}
-
-$('composer').onsubmit = (event) => {
-  event.preventDefault();
-  if (generation) return generation.controller.abort();
-  const text = $('input').value.trim();
-  if (!text || !$('model').value) return;
-  $('input').value = '';
-  grow();
-  void send(text);
-};
-
-// La zone de saisie suit la longueur du message.
-function grow() {
-  const input = $('input');
-  input.style.height = 'auto';
-  input.style.height = `${input.scrollHeight}px`;
-}
-
-$('input').oninput = () => { grow(); updateSend(); companion.listen(Boolean($('input').value)); };
-$('input').onkeydown = (event) => {
-  // Entrée envoie ; Maj+Entrée va à la ligne.
-  if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
-  event.preventDefault();
-  if (!generation) $('composer').requestSubmit();
-};
 
 // ── Modèles ─────────────────────────────────────────────────────────────────
 
@@ -988,13 +683,15 @@ $('export').onclick = () => {
 };
 
 $('purge').onclick = async () => {
-  if (!(await confirmDelete('Tout effacer ?', 'Toutes les discussions de ce navigateur seront supprimées.'))) return;
-  generation?.controller.abort();
+  if (!(await confirmDelete('Tout effacer ?', 'Toutes les discussions et tous les groupes de ce navigateur seront supprimés.'))) return;
+  for (const id of [...runs.keys()]) dropRun(id);
+  previews.clear();
   conversations = [];
+  groups = [];
   current = null;
   save(STORE, conversations);
-  renderHistory();
-  renderMessages();
+  saveGroups();
+  render();
 };
 
 // ── Démarrage ───────────────────────────────────────────────────────────────
@@ -1024,15 +721,13 @@ $('sidebar-toggle').onclick = () => {
   $('sidebar-toggle').setAttribute('aria-label', closed ? 'Afficher la barre latérale' : 'Replier la barre latérale');
 };
 
-// Le texte est estimé : environ 4 caractères par jeton.
 function renderDetails() {
   const body = $('details-body');
   if (!current) {
     body.replaceChildren(element('p', 'muted', 'Ouvrez une discussion pour voir ses paramètres.'));
     return;
   }
-  const chars = current.messages.reduce((sum, message) => sum + (message.content || '').length, 0);
-  const tokens = Math.ceil(chars / 4);
+  const tokens = estimateTokens(contextFor(current.messages));
   const limit = settings?.context ?? ASSUMED_CONTEXT;
   const percent = Math.min(100, Math.round((tokens / limit) * 100));
 
@@ -1067,14 +762,20 @@ window.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') drawer(false);
 });
 window.addEventListener('storage', (event) => {
-  if (event.key !== STORE || generation) return;
+  if (event.key !== STORE && event.key !== GROUP_STORE) return;
   conversations = load(STORE, []);
+  groups = load(GROUP_STORE, []);
   current = conversations.find((c) => c.id === current?.id) || null;
   render();
+  resume();
 });
 
-applyTheme(load(THEME_STORE, 'light dark'));
-render();
-void refreshModels();
-void refreshSystem();
-void loadSettings();
+// Les autres scripts de l'interface sont alors chargés.
+window.addEventListener('DOMContentLoaded', () => {
+  applyTheme(load(THEME_STORE, 'light dark'));
+  render();
+  resume();
+  void refreshModels();
+  void refreshSystem();
+  void loadSettings();
+});
