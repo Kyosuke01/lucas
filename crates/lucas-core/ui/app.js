@@ -128,7 +128,11 @@ const DIALS = {
     stops: [0, 0.3, 0.7, 1.2, 2],
     recommended: 0.7,
     format: (v) => v.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 2 }),
-    help: (v) => (v < 0.5 ? 'Réponses précises et régulières.' : v < 1.5 ? 'Bon compromis pour la plupart des usages.' : 'Réponses variées, moins fiables.'),
+    help: (v) => {
+      if (v < 0.5) return 'Réponses précises et régulières.';
+      if (v < 1.5) return 'Bon compromis pour la plupart des usages.';
+      return 'Réponses variées, moins fiables.';
+    },
   },
   context: {
     stops: [1024, 2048, 4096, 8192, 16384, 32768, 65536],
@@ -304,6 +308,13 @@ function showState(text) {
   state.textContent = text;
 }
 
+// Résultat final d'une réponse : arrêtée, terminée ou en erreur.
+function reportOutcome(interrupted) {
+  if (interrupted) setActivity('Réponse interrompue.', true);
+  else if ($('notice').hidden) setActivity('Réponse terminée.', true);
+  else setActivity('Erreur pendant la réponse.');
+}
+
 // Ligne d'état sous la discussion : pour le résultat final, qui peut disparaître.
 let activityTimer;
 function setActivity(text, fade = false) {
@@ -378,7 +389,7 @@ function openMenu(entry, conversation) {
       renaming = conversation;
       renderHistory();
     }),
-    menuItem('trash', 'Supprimer', () => { closeMenu(); deleteConversation(conversation); }, true),
+    menuItem('trash', 'Supprimer', () => { closeMenu(); void deleteConversation(conversation); }, true),
   );
   entry.append(menu);
   menu.querySelector('button').focus();
@@ -515,9 +526,7 @@ async function send(text) {
   if (conversations.includes(conversation)) persist(conversation);
   // Après la première réponse, pour ne pas la retarder.
   if (reply.content && conversation.messages.length === 2) void summarize(conversation, model, text);
-  if (interrupted) setActivity('Réponse interrompue.', true);
-  else if ($('notice').hidden) setActivity('Réponse terminée.', true);
-  else setActivity('Erreur pendant la réponse.');
+  reportOutcome(interrupted);
   render();
   // Final : l'anneau se retrace une fois.
   if (current === conversation && reply.content) {
@@ -1043,11 +1052,12 @@ function renderDetails() {
   body.replaceChildren(element('p', 'context-head', 'Contexte'), bar);
 }
 
-async function loadSettings() {
-  try {
-    settings = await (await api('/api/settings')).json();
-    renderDetails();
-  } catch { /* volet sans réglages : le calcul reste sur la valeur par défaut */ }
+// Volet sans réglages en cas d'échec : le calcul reste sur la valeur par défaut.
+function loadSettings() {
+  return api('/api/settings')
+    .then((response) => response.json())
+    .then((data) => { settings = data; renderDetails(); })
+    .catch(() => {});
 }
 $('menu').onclick = (event) => { event.stopPropagation(); drawer(true); };
 $('close-menu').onclick = () => drawer(false);
