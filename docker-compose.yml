@@ -1,65 +1,54 @@
+# Tout LUCAS démarre avec `docker compose up -d`. Le fichier .env est facultatif.
+# Les ports sont publiés sur 127.0.0.1 : rien n'est exposé au réseau local.
+name: lucas
+
 services:
   ollama:
     image: ollama/ollama:latest
     container_name: lucas-ollama
     restart: unless-stopped
-    ports:
-      - "${OLLAMA_PORT:-11434}:11434"
+    # Aucun port publié : l'API d'Ollama contournerait les protections de LUCAS.
     volumes:
       - ollama_data:/root/.ollama
     healthcheck:
-      test: [ "CMD-SHELL", "ollama list || exit 1" ]
+      test: ["CMD-SHELL", "ollama list || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 15s
 
-  open-webui:
-    image: ghcr.io/open-webui/open-webui:main
-    container_name: lucas-open-webui
-    restart: unless-stopped
+  # Télécharge le modèle par défaut au premier démarrage, puis s'arrête.
+  # S'il est déjà présent, aucun accès à Internet n'est nécessaire.
+  ollama-pull:
+    image: ollama/ollama:latest
+    restart: "no"
     depends_on:
       ollama:
         condition: service_healthy
     environment:
-      OLLAMA_BASE_URL: http://${OLLAMA_HOST:-ollama}:${OLLAMA_PORT:-11434}
-      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY}
-      ENABLE_SIGNUP: ${ENABLE_SIGNUP:-true}
+      OLLAMA_HOST: http://ollama:11434
+      MODEL: ${OLLAMA_DEFAULT_MODEL:-llama3.1:8b}
+    entrypoint: ["/bin/sh", "-c"]
+    command: ['ollama show "$$MODEL" >/dev/null 2>&1 || ollama pull "$$MODEL"']
 
-      WEBUI_NAME: "LUCAS"
-      WEBUI_URL: "http://localhost:8080"
-      ENABLE_LOGIN_FORM: "true"
-      SHOW_ADMIN_DETAILS: "false"
-      DEFAULT_LOCALE: "fr"
-    ports:
-      - "${OPEN_WEBUI_PORT:-8080}:8080"
-    volumes:
-      - webui_data:/app/backend/data
-
+  # Interface et API de LUCAS. Pas d'authentification : ne pas exposer au réseau.
   lucas-core:
     build:
-      context: ./lucas-core
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: crates/lucas-core/Dockerfile
     container_name: lucas-core
     restart: unless-stopped
     depends_on:
       ollama:
         condition: service_healthy
     environment:
-      LUCAS_ENV: ${LUCAS_ENV:-development}
-      LUCAS_LOG_LEVEL: ${LUCAS_LOG_LEVEL:-INFO}
-      OLLAMA_BASE_URL: http://${OLLAMA_HOST:-ollama}:${OLLAMA_PORT:-11434}
+      OLLAMA_BASE_URL: http://ollama:11434
       OLLAMA_DEFAULT_MODEL: ${OLLAMA_DEFAULT_MODEL:-llama3.1:8b}
-      LUCAS_ACTION_CONFIRM: ${LUCAS_ACTION_CONFIRM:-true}
-      LUCAS_ACTION_WHITELIST: ${LUCAS_ACTION_WHITELIST:-true}
-    ports:
-      - "8000:8000"
     volumes:
-      - lucas_logs:/app/logs
-      - lucas_config:/app/config
+      - lucas_data:/data
+    ports:
+      - "127.0.0.1:${LUCAS_PORT:-8080}:8000"
 
 volumes:
   ollama_data:
-  webui_data:
-  lucas_logs:
-  lucas_config:
+  lucas_data:
