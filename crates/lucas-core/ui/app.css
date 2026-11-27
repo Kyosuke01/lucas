@@ -36,6 +36,34 @@ button:disabled { cursor: default; }
 .ghost { width: 32px; height: 32px; flex: none; color: var(--muted); }
 .ghost:hover { background: var(--soft); color: var(--text); }
 .drawer-only { display: none; }
+#info-toggle { margin-left: auto; transition: background-color .2s, color .2s; }
+/* Le même bouton ouvre et ferme le volet : ouvert, il reste à sa place, dans le volet. */
+body.info-open #info-toggle { position: fixed; top: 12px; right: 20px; z-index: 3; background: var(--soft); color: var(--amber); }
+
+/* Volet d'infos, pleine hauteur, à droite de la discussion. */
+.details { position: fixed; inset: 0 0 0 auto; z-index: 2; display: flex; flex-direction: column; width: min(340px, 88vw); padding: 64px 20px 20px; overflow-y: auto; background: var(--side); border-left: 1px solid var(--line); transform: translateX(100%); visibility: hidden; transition: transform .2s, visibility .2s; }
+body.info-open .details { transform: none; visibility: visible; }
+
+/* Sur bureau, le volet prend sa place dans la grille : la discussion se resserre. */
+@media (min-width: 761px) {
+  /* Fermé, le volet ne doit pas occuper une ligne de la grille. */
+  .details { display: none; position: static; inset: auto; width: 340px; padding: 64px 20px 20px; border-left: 1px solid var(--line); transform: none; }
+  body.info-open .details { display: flex; }
+  body.info-open { grid-template-columns: 264px minmax(0, 1fr) 340px; }
+  body.info-open.sidebar-closed { grid-template-columns: minmax(0, 1fr) 340px; }
+}
+
+/* Barre latérale repliable (bureau). */
+body.sidebar-closed { grid-template-columns: minmax(0, 1fr); }
+body.sidebar-closed aside { display: none; }
+#sidebar-toggle { margin-right: 4px; }
+@media (max-width: 760px) { #sidebar-toggle { display: none; } }
+.context-head { margin: 8px 0 12px; font-weight: 600; }
+.context-bar { display: flex; align-items: center; gap: 12px; }
+.pct { flex: none; min-width: 3.5em; font-variant-numeric: tabular-nums; color: var(--muted); }
+.meter { flex: 1; height: 8px; border-radius: 4px; background: var(--soft); overflow: hidden; }
+.meter span { display: block; height: 100%; border-radius: 4px; background: var(--amber); }
+.meter span.high { background: var(--danger); }
 
 /* Barre latérale : une seule marge de 12 px, icônes alignées à 22 px. */
 aside { display: flex; flex-direction: column; min-height: 0; padding: 0 12px 12px; background: var(--side); border-right: 1px solid var(--line); }
@@ -45,12 +73,17 @@ aside { display: flex; flex-direction: column; min-height: 0; padding: 0 12px 12
 .row { width: 100%; height: 38px; justify-content: flex-start; padding: 0 10px; text-align: left; }
 .row:hover, .row.current { background: var(--soft); }
 nav { flex: 1; min-height: 0; overflow-y: auto; margin-block: 12px; display: flex; flex-direction: column; gap: 2px; }
-.entry { display: flex; align-items: center; flex: none; padding-right: 3px; border-radius: 8px; }
+.entry { position: relative; display: flex; align-items: center; flex: none; padding-right: 3px; border-radius: 8px; }
 .entry:hover, .entry.current { background: var(--soft); }
 .entry .row { flex: 1; min-width: 0; display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; line-height: 38px; }
 .entry .row:hover { background: none; }
-.entry .ghost { opacity: 0; }
-.entry:hover .ghost, .entry:focus-within .ghost { opacity: 1; }
+.entry .more { opacity: 0; }
+.entry:hover .more, .entry:focus-within .more, .entry .more[aria-expanded="true"] { opacity: 1; }
+.entry .rename { flex: 1; min-width: 0; height: 36px; margin: 1px 4px; padding: 0 8px; border: 1px solid var(--amber); border-radius: 8px; background: var(--raised); }
+.menu { position: absolute; top: 100%; right: 0; z-index: 5; display: grid; min-width: 170px; margin-top: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 10px; background: var(--raised); box-shadow: 0 8px 24px light-dark(#171d2b1f, #0000004d); }
+.menu button { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 7px; color: var(--text); text-align: left; }
+.menu button:hover, .menu button:focus-visible { background: var(--soft); }
+.menu button.danger { color: var(--danger); }
 .foot { padding-top: 12px; border-top: 1px solid var(--line); }
 
 /* Zone principale : tout ce qui se lit partage la même colonne de 720 px. */
@@ -62,6 +95,8 @@ h1 { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 
 section { flex: 1; min-height: 0; }
 
 #chat { display: flex; flex-direction: column; }
+/* Seule la poignée de défilement reste visible : pas de fond de piste. */
+html, #messages, .details { scrollbar-color: var(--muted) transparent; }
 #messages { flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable both-edges; padding-block: 8px 24px; }
 .message { width: min(720px, 100% - 32px); margin: 0 auto 24px; overflow-wrap: anywhere; }
 .message.user { display: flex; justify-content: flex-end; }
@@ -114,6 +149,7 @@ pre { margin: 12px 0; padding: 12px 14px; overflow-x: auto; border: 1px solid va
 #external { flex: none; margin-top: -12px; margin-bottom: 12px; text-align: center; }
 #composer { flex: none; margin-bottom: 20px; padding: 10px 10px 8px; border: 1px solid var(--line); border-radius: 18px; background: var(--raised); box-shadow: 0 6px 24px light-dark(#171d2b12, #0000002e); }
 #composer:focus-within { border-color: var(--amber); }
+#composer textarea { margin-top: 0; min-height: 28px; }
 textarea { display: block; width: 100%; min-height: 40px; max-height: 200px; padding: 6px 8px; border: 0; background: none; resize: none; }
 #composer textarea:focus-visible, .select select:focus-visible { outline: none; }
 .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 6px; }
@@ -123,6 +159,14 @@ select { appearance: none; max-width: 100%; height: 34px; padding: 0 30px 0 10px
 .select .icon { position: absolute; right: 8px; width: 16px; height: 16px; pointer-events: none; }
 .send { width: 36px; height: 36px; flex: none; border-radius: 50%; background: var(--amber); color: var(--on-amber); }
 .send:disabled { background: var(--soft); color: var(--muted); }
+.send.stop .icon { width: 22px; height: 22px; }
+/* Ligne d'état entre la discussion et la zone d'écriture. */
+/* Dans le cadre de saisie, au-dessus du champ : rien n'est réservé quand elle est vide. */
+#composer .activity { margin: 0 0 4px 4px; font-size: 13px; color: var(--muted); }
+#composer .activity:empty { display: none; }
+/* En haut de la réponse, sur la même ligne que le logo. */
+.state { height: 24px; margin: 0 0 6px; line-height: 24px; font-size: 13px; color: var(--muted); }
+.cut { margin: 6px 0 0; font-size: 13px; color: var(--muted); font-style: italic; }
 
 /* Conversation vide : accueil et saisie forment un seul bloc centré. */
 #chat.start { justify-content: center; padding-bottom: 10vh; }
@@ -168,6 +212,23 @@ code { font: 12px ui-monospace, Menlo, Consolas, monospace; padding: 1px 5px; bo
 .drop .icon { width: 24px; height: 24px; margin-bottom: 6px; color: var(--accent-text); }
 #import-confirm { margin-top: 10px; }
 .label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.label { font-weight: 600; }
+.dial { margin: 16px 0 8px; }
+.dial-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.slider { position: relative; padding: 30px 0 34px; }
+.slider input[type="range"] { -webkit-appearance: none; appearance: none; display: block; width: 100%; height: 20px; min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; cursor: pointer; }
+.slider input[type="range"]:focus-visible { outline: none; }
+.slider input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--soft); }
+.slider input[type="range"]::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; background: var(--line); }
+.slider input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; margin-top: -7.5px; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px #0006; }
+.slider input[type="range"]::-moz-range-track { height: 3px; border-radius: 2px; background: var(--line); }
+.slider input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px #0006; }
+.ticks { position: absolute; left: 9px; right: 9px; top: 30px; height: 20px; pointer-events: none; }
+.tick { position: absolute; top: 0; width: 0; height: 20px; pointer-events: auto; cursor: pointer; }
+.tick .value { position: absolute; top: 26px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tick.on .value { color: var(--amber); font-weight: 600; }
+/* Point discret sous la valeur conseillée. */
+.tick.recommended::after { content: ""; position: absolute; top: 46px; left: 0; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--amber); }
 .help { width: 26px; height: 26px; border-radius: 50%; color: var(--muted); }
 .help:hover { color: var(--accent-text); background: var(--soft); }
 dialog { width: min(420px, 100% - 32px); margin: auto; padding: 22px; border: 1px solid var(--line); border-radius: 16px; background: var(--raised); color: var(--text); box-shadow: 0 20px 60px #0006; }
@@ -200,7 +261,7 @@ dd { text-align: right; overflow-wrap: anywhere; }
 progress { width: 100%; accent-color: var(--amber); }
 .hint { margin-top: 14px; font-size: 13px; }
 
-@media (hover: none) { .entry .ghost { opacity: 1; } }
+@media (hover: none) { .entry .more { opacity: 1; } }
 @media (max-width: 760px) {
   body { grid-template-columns: minmax(0, 1fr); }
   aside { position: fixed; inset: 0 auto 0 0; z-index: 2; width: min(300px, 85vw); transform: translateX(-100%); visibility: hidden; transition: transform .2s, visibility .2s; }
