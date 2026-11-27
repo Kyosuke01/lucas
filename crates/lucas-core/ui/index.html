@@ -30,20 +30,20 @@
     <div class="brand">
       <button type="button" id="companion" aria-label="Compagnon de LUCAS : cliquer pour le caresser, glisser pour le sortir" title="Glissez-moi. Double-clic pour rentrer."></button>
       <span>LUCAS</span>
-      <button class="ghost drawer-only" id="close-menu" type="button" aria-label="Fermer le menu"><svg class="icon"><use href="#i-close"/></svg></button>
+      <button class="ghost drawer-only" id="close-menu" type="button" aria-label="Fermer le menu"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
     </div>
-    <button class="row" id="new-chat" type="button"><svg class="icon"><use href="#i-plus"/></svg>Nouvelle conversation</button>
+    <button class="row" id="new-chat" type="button"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Nouvelle conversation</button>
     <nav id="history" aria-label="Conversations"></nav>
     <div class="foot">
-      <button class="row" id="show-models" type="button"><svg class="icon"><use href="#i-box"/></svg>Modèles</button>
-      <button class="row" id="show-settings" type="button"><svg class="icon"><use href="#i-sliders"/></svg>Réglages</button>
+      <button class="row" id="show-models" type="button"><svg class="icon" aria-hidden="true"><use href="#i-box"/></svg>Modèles</button>
+      <button class="row" id="show-settings" type="button"><svg class="icon" aria-hidden="true"><use href="#i-sliders"/></svg>Réglages</button>
     </div>
   </aside>
 
   <main>
     <header>
-      <button class="ghost drawer-only" id="menu" type="button" aria-label="Ouvrir le menu" aria-expanded="false"><svg class="icon"><use href="#i-menu"/></svg></button>
-      <h1 id="title"></h1>
+      <button class="ghost drawer-only" id="menu" type="button" aria-label="Ouvrir le menu" aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-menu"/></svg></button>
+      <h1 id="title" class="sr">LUCAS</h1>
     </header>
 
     <p id="notice" class="column" role="alert" hidden></p>
@@ -55,9 +55,9 @@
         <div class="toolbar">
           <label class="select">
             <select id="model" aria-label="Modèle utilisé"></select>
-            <svg class="icon"><use href="#i-chevron"/></svg>
+            <svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg>
           </label>
-          <button type="submit" class="send" id="send" aria-label="Envoyer"><svg class="icon"><use href="#i-send"/></svg></button>
+          <button type="submit" class="send" id="send" aria-label="Envoyer"><svg class="icon" aria-hidden="true"><use href="#i-send"/></svg></button>
         </div>
       </form>
       <p id="external" class="column muted hint" hidden></p>
@@ -86,7 +86,7 @@
         <form id="import" novalidate>
           <label class="drop" id="drop">
             <input id="import-file" type="file" accept=".gguf" class="sr">
-            <svg class="icon"><use href="#i-upload"/></svg>
+            <svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg>
             <span id="drop-title">Déposez un fichier .gguf</span>
             <small id="drop-detail" class="muted">ou cliquez pour le choisir sur cet ordinateur</small>
           </label>
@@ -116,11 +116,11 @@
               <summary>Options avancées</summary>
               <div class="pair">
                 <div class="field">
-                  <span class="label-row"><label for="temperature">Température (0 à 2)</label><button type="button" class="help" data-help="temperature" aria-label="Qu'est-ce que la température ?"><svg class="icon"><use href="#i-help"/></svg></button></span>
+                  <span class="label-row"><label for="temperature">Température (0 à 2)</label><button type="button" class="help" data-help="temperature" aria-label="Qu'est-ce que la température ?"><svg class="icon" aria-hidden="true"><use href="#i-help"/></svg></button></span>
                   <input id="temperature" type="number" min="0" max="2" step="0.1" placeholder="Par défaut">
                 </div>
                 <div class="field">
-                  <span class="label-row"><label for="context">Contexte (jetons)</label><button type="button" class="help" data-help="context" aria-label="Qu'est-ce que le contexte ?"><svg class="icon"><use href="#i-help"/></svg></button></span>
+                  <span class="label-row"><label for="context">Contexte (jetons)</label><button type="button" class="help" data-help="context" aria-label="Qu'est-ce que le contexte ?"><svg class="icon" aria-hidden="true"><use href="#i-help"/></svg></button></span>
                   <input id="context" type="number" min="512" max="1000000" placeholder="Par défaut">
                 </div>
               </div>
@@ -129,7 +129,7 @@
           <div id="tab-api" role="tabpanel" hidden>
             <p class="hint muted">Services compatibles OpenAI. Vos messages leur sont envoyés.</p>
             <div id="providers"></div>
-            <button type="button" class="secondary" id="add-provider"><svg class="icon"><use href="#i-plus"/></svg>Ajouter une API</button>
+            <button type="button" class="secondary" id="add-provider"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Ajouter une API</button>
           </div>
           <div class="save">
             <button type="submit" class="primary">Enregistrer</button>
@@ -157,7 +157,7 @@
 
   <dialog id="dialog" aria-labelledby="dialog-title">
     <form method="dialog">
-      <h2 id="dialog-title"></h2>
+      <h2 id="dialog-title">LUCAS</h2>
       <div id="dialog-body"></div>
       <menu>
         <button value="cancel" class="secondary" id="dialog-cancel">Annuler</button>

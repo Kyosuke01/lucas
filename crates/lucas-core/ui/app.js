@@ -37,7 +37,7 @@ function iconButton(icon, label, onClick) {
   button.type = 'button';
   button.setAttribute('aria-label', label);
   button.title = label;
-  button.innerHTML = `<svg class="icon"><use href="#i-${icon}"/></svg>`;
+  button.innerHTML = `<svg class="icon" aria-hidden="true"><use href="#i-${icon}"/></svg>`;
   button.onclick = onClick;
   return button;
 }
@@ -89,7 +89,7 @@ function drawer(open) {
 function modal({ title, text, ok = 'Compris', cancel = false, danger = false }) {
   const dialog = $('dialog');
   $('dialog-title').textContent = title;
-  $('dialog-body').replaceChildren(...[].concat(text).map((line) => element('p', '', line)));
+  $('dialog-body').replaceChildren(...[text].flat().map((line) => element('p', '', line)));
   $('dialog-ok').textContent = ok;
   $('dialog-ok').classList.toggle('destructive', danger);
   $('dialog-cancel').hidden = !cancel;
@@ -133,9 +133,9 @@ function notice(message) {
 
 // ── API ─────────────────────────────────────────────────────────────────────
 
-async function api(path, method = 'GET', body, signal) {
+async function api(path, method, body, signal) {
   const response = await fetch(path, {
-    method,
+    method: method || 'GET',
     signal,
     headers: body && { 'Content-Type': 'application/json' },
     body: body && JSON.stringify(body),
@@ -174,8 +174,8 @@ function show(view) {
   for (const id of ['chat', 'models', 'settings']) $(id).hidden = view !== id;
   drawer(false);
   notice('');
-  if (view === 'models') refreshModels();
-  if (view === 'settings') openSettings();
+  if (view === 'models') void refreshModels();
+  if (view === 'settings') void openSettings();
 }
 
 // Titre de la page et repère « vous êtes ici » dans la barre latérale.
@@ -183,10 +183,24 @@ function renderLocation() {
   const onModels = !$('models').hidden;
   const onSettings = !$('settings').hidden;
   const onChat = !$('chat').hidden;
-  $('title').textContent = onModels ? 'Modèles' : onSettings ? 'Réglages' : current?.title || '';
+  let title = current?.title;
+  if (onModels) title = 'Modèles';
+  if (onSettings) title = 'Réglages';
+  // Un titre n'est jamais vide pour les lecteurs d'écran ; sans objet, il est masqué.
+  $('title').textContent = title || 'LUCAS';
+  $('title').classList.toggle('sr', !title);
   $('show-models').classList.toggle('current', onModels);
   $('show-settings').classList.toggle('current', onSettings);
   $('new-chat').classList.toggle('current', onChat && !current);
+}
+
+// Sans expression régulière : son coût exploserait sur de longues suites de lignes vides.
+function trimNewlines(text) {
+  let start = 0;
+  let end = text.length;
+  while (text[start] === '\n') start += 1;
+  while (end > start && text[end - 1] === '\n') end -= 1;
+  return text.slice(start, end);
 }
 
 // Texte brut, sauf les blocs de code. Jamais de HTML venant du modèle.
@@ -194,10 +208,10 @@ function fill(node, text) {
   const body = [];
   text.split(/^```/m).forEach((part, index) => {
     if (index % 2) {
-      body.push(element('pre', '', part.replace(/^[\w+-]*\n/, '').replace(/\n+$/, '')));
+      body.push(element('pre', '', trimNewlines(part.replace(/^[\w+-]*\n/, ''))));
     } else if (part.trim()) {
       // Les sauts de ligne autour d'un bloc de code créeraient de grands vides.
-      body.push(element('p', '', part.replace(/^\n+|\n+$/g, '')));
+      body.push(element('p', '', trimNewlines(part)));
     }
   });
   // Le signe est conservé : le recréer relancerait son animation à chaque mot.
@@ -319,7 +333,7 @@ async function send(text) {
   else { companion.done(false); companion.worry(); }
   if (conversations.includes(conversation)) persist(conversation);
   // Après la première réponse, pour ne pas la retarder.
-  if (reply.content && conversation.messages.length === 2) summarize(conversation, model, text);
+  if (reply.content && conversation.messages.length === 2) void summarize(conversation, model, text);
   $('status').textContent = 'Réponse terminée';
   render();
   // Final : l'anneau se retrace une fois.
@@ -350,7 +364,7 @@ $('composer').onsubmit = (event) => {
   if (!text || !$('model').value) return;
   $('input').value = '';
   grow();
-  send(text);
+  void send(text);
 };
 
 // La zone de saisie suit la longueur du message.
@@ -395,7 +409,10 @@ async function refreshModels() {
   const remote = data.remote;
   const missing = data.unreachable.length ? `API injoignable : ${data.unreachable.join(', ')}` : '';
   if (missing && !$('settings').hidden) notice(missing);
-  else if (missing) notice((listError = missing));
+  else if (missing) {
+    listError = missing;
+    notice(missing);
+  }
   installedNames = data.models.map((m) => m.name);
   renderCatalog();
   // Premier démarrage : attendre la fin du téléchargement du modèle.
@@ -455,7 +472,7 @@ function editName(item, { name: model, alias }) {
   input.autocomplete = 'off';
   const confirmButton = iconButton('check', 'Valider', null);
   confirmButton.type = 'submit';
-  const close = () => { item.replaceChildren(...original); refreshModels(); };
+  const close = () => { item.replaceChildren(...original); void refreshModels(); };
   const abandon = () => { notice(''); close(); };
   const cancel = iconButton('close', 'Annuler', abandon);
   cancel.dataset.cancel = '';
@@ -487,7 +504,7 @@ async function removeModel(name) {
   } catch (error) {
     notice(readable(error));
   }
-  refreshModels();
+  void refreshModels();
 }
 
 // Tailles et mémoire conseillées : ordres de grandeur.
@@ -585,14 +602,14 @@ async function pull(model) {
   }
   $('progress').hidden = true;
   downloading = false;
-  refreshModels();
+  void refreshModels();
 }
 
 $('add').onsubmit = (event) => {
   event.preventDefault();
   openCatalog(false);
   const model = $('add-name').value.trim();
-  if (model) pull(model);
+  if (model) void pull(model);
 };
 
 let importFile = null;
@@ -646,7 +663,7 @@ $('import').onsubmit = async (event) => {
   }
   button.disabled = false;
   button.textContent = 'Importer';
-  refreshModels();
+  void refreshModels();
 };
 
 // ── Réglages ────────────────────────────────────────────────────────────────
@@ -707,7 +724,7 @@ async function refreshSystem() {
 
 async function openSettings() {
   $('saved').textContent = '';
-  refreshSystem();
+  void refreshSystem();
   // Tant que les réglages ne sont pas lus, enregistrer les effacerait.
   const button = $('preferences').querySelector('[type=submit]');
   button.disabled = true;
@@ -753,7 +770,7 @@ $('preferences').onsubmit = async (event) => {
     };
     fillSettings(await (await api('/api/settings', 'PUT', body)).json());
     $('saved').textContent = 'Enregistré';
-    refreshModels();
+    void refreshModels();
   } catch (error) {
     notice(readable(error));
   }
@@ -806,5 +823,5 @@ window.addEventListener('storage', (event) => {
 
 applyTheme(load(THEME_STORE, 'light dark'));
 render();
-refreshModels();
-refreshSystem();
+void refreshModels();
+void refreshSystem();
