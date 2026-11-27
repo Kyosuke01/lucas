@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LUCAS</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <svg xmlns="http://www.w3.org/2000/svg" hidden>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V5M7 9l5-5 5 5M5 20h14"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.700M12 16.8v.2"/></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8zM3 8l9 5 9-5M12 13v8"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM13 7l4 4"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></symbol>
+    <symbol id="i-mark" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle class="core" cx="12" cy="12" r="3.5"/></symbol>
+  </svg>
+
+  <aside id="sidebar">
+    <div class="brand">
+      <button type="button" id="companion" aria-label="Compagnon de LUCAS : cliquer pour le caresser, glisser pour le sortir" title="Glissez-moi. Double-clic pour rentrer."></button>
+      <span>LUCAS</span>
+      <button class="ghost drawer-only" id="close-menu" type="button" aria-label="Fermer le menu"><svg class="icon"><use href="#i-close"/></svg></button>
+    </div>
+    <button class="row" id="new-chat" type="button"><svg class="icon"><use href="#i-plus"/></svg>Nouvelle conversation</button>
+    <nav id="history" aria-label="Conversations"></nav>
+    <div class="foot">
+      <button class="row" id="show-models" type="button"><svg class="icon"><use href="#i-box"/></svg>Modèles</button>
+      <button class="row" id="show-settings" type="button"><svg class="icon"><use href="#i-sliders"/></svg>Réglages</button>
+    </div>
+  </aside>
+
+  <main>
+    <header>
+      <button class="ghost drawer-only" id="menu" type="button" aria-label="Ouvrir le menu" aria-expanded="false"><svg class="icon"><use href="#i-menu"/></svg></button>
+      <h1 id="title"></h1>
+    </header>
+
+    <p id="notice" class="column" role="alert" hidden></p>
+
+    <section id="chat">
+      <div id="messages"></div>
+      <form id="composer" class="column">
+        <textarea id="input" rows="1" placeholder="Écrire à LUCAS" aria-label="Message"></textarea>
+        <div class="toolbar">
+          <label class="select">
+            <select id="model" aria-label="Modèle utilisé"></select>
+            <svg class="icon"><use href="#i-chevron"/></svg>
+          </label>
+          <button type="submit" class="send" id="send" aria-label="Envoyer"><svg class="icon"><use href="#i-send"/></svg></button>
+        </div>
+      </form>
+      <p id="external" class="column muted hint" hidden></p>
+      <p id="status" class="sr" role="status"></p>
+    </section>
+
+    <section id="models" class="page" hidden>
+      <div class="column">
+        <ul id="installed" class="card"></ul>
+
+        <h2>Ajouter un modèle</h2>
+        <div id="progress" hidden>
+          <progress max="100" aria-label="Téléchargement"></progress>
+          <span id="progress-label" class="muted"></span>
+        </div>
+        <form id="add" class="inline" novalidate>
+          <div class="combo">
+            <input id="add-name" role="combobox" aria-expanded="false" aria-controls="catalog" aria-label="Modèle à télécharger" placeholder="Choisir ou saisir un modèle" autocomplete="off">
+            <svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg>
+            <ul id="catalog" role="listbox" hidden></ul>
+          </div>
+          <button type="submit" class="primary">Télécharger</button>
+        </form>
+        <p class="hint muted">Un autre modèle ? Écrivez son nom exact, tel qu'affiché sur ollama.com/library, sous la forme <code>nom:taille</code> (par exemple <code>phi3:mini</code>). Depuis Hugging Face : <code>hf.co/auteur/dépôt:Q4_K_M</code>.</p>
+
+        <form id="import" novalidate>
+          <label class="drop" id="drop">
+            <input id="import-file" type="file" accept=".gguf" class="sr">
+            <svg class="icon"><use href="#i-upload"/></svg>
+            <span id="drop-title">Déposez un fichier .gguf</span>
+            <small id="drop-detail" class="muted">ou cliquez pour le choisir sur cet ordinateur</small>
+          </label>
+          <div id="import-confirm" class="inline" hidden>
+            <input id="import-name" placeholder="Nom à lui donner" aria-label="Nom du modèle importé" autocomplete="off">
+            <button type="submit" class="primary" id="import-button">Importer</button>
+            <button type="button" class="secondary" id="import-cancel">Annuler</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section id="settings" class="page" hidden>
+      <div class="column">
+        <div class="tabs" role="tablist" aria-label="Rubriques">
+          <button type="button" role="tab" data-panel="tab-assistant" aria-selected="true">Assistant</button>
+          <button type="button" role="tab" data-panel="tab-api" aria-selected="false">API</button>
+          <button type="button" role="tab" data-panel="tab-system" aria-selected="false">Système</button>
+        </div>
+
+        <form id="preferences" novalidate>
+          <div id="tab-assistant" role="tabpanel">
+            <label class="field">Consigne donnée au modèle
+              <textarea id="system-prompt" rows="4" placeholder="Par exemple : réponds en français, brièvement."></textarea>
+            </label>
+            <details>
+              <summary>Options avancées</summary>
+              <div class="pair">
+                <div class="field">
+                  <span class="label-row"><label for="temperature">Température (0 à 2)</label><button type="button" class="help" data-help="temperature" aria-label="Qu'est-ce que la température ?"><svg class="icon"><use href="#i-help"/></svg></button></span>
+                  <input id="temperature" type="number" min="0" max="2" step="0.1" placeholder="Par défaut">
+                </div>
+                <div class="field">
+                  <span class="label-row"><label for="context">Contexte (jetons)</label><button type="button" class="help" data-help="context" aria-label="Qu'est-ce que le contexte ?"><svg class="icon"><use href="#i-help"/></svg></button></span>
+                  <input id="context" type="number" min="512" max="1000000" placeholder="Par défaut">
+                </div>
+              </div>
+            </details>
+          </div>
+          <div id="tab-api" role="tabpanel" hidden>
+            <p class="hint muted">Services compatibles OpenAI. Vos messages leur sont envoyés.</p>
+            <div id="providers"></div>
+            <button type="button" class="secondary" id="add-provider"><svg class="icon"><use href="#i-plus"/></svg>Ajouter une API</button>
+          </div>
+          <div class="save">
+            <button type="submit" class="primary">Enregistrer</button>
+            <span id="saved" class="muted" role="status"></span>
+          </div>
+        </form>
+
+        <div id="tab-system" role="tabpanel" hidden>
+          <dl id="system" class="card"></dl>
+          <label class="field">Thème
+            <select id="theme" class="box">
+              <option value="light dark">Comme le système</option>
+              <option value="light">Clair</option>
+              <option value="dark">Sombre</option>
+            </select>
+          </label>
+          <div class="links">
+            <button type="button" class="link" id="export">Exporter les conversations</button>
+            <button type="button" class="link danger" id="purge">Tout effacer</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="dialog" aria-labelledby="dialog-title">
+    <form method="dialog">
+      <h2 id="dialog-title"></h2>
+      <div id="dialog-body"></div>
+      <menu>
+        <button value="cancel" class="secondary" id="dialog-cancel">Annuler</button>
+        <button value="ok" class="primary" id="dialog-ok"></button>
+      </menu>
+    </form>
+  </dialog>
+
+  <script src="/companion.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
