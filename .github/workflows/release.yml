@@ -14,22 +14,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Generate changelog
-        id: changelog
-        uses: orhun/git-cliff-action@v3
-        with:
-          config: cliff.toml
-          args: --verbose --latest
-        continue-on-error: true
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           name: "LUCAS ${{ github.ref_name }}"
-          body: ${{ steps.changelog.outputs.content }}
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true

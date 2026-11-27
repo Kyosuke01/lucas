@@ -3,6 +3,7 @@ updates:
   # Dépendances GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "preprod"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -12,15 +13,16 @@ updates:
     commit-message:
       prefix: "chore(ci)"
 
-  # Dépendances Python
-  - package-ecosystem: "pip"
+  # Dépendances Rust
+  - package-ecosystem: "cargo"
     directory: "/"
+    target-branch: "preprod"
     schedule:
       interval: "weekly"
       day: "monday"
     labels:
       - "dependencies"
-      - "python"
+      - "rust"
     commit-message:
       prefix: "chore(deps)"
     ignore:
@@ -29,7 +31,8 @@ updates:
 
   # Dépendances Docker
   - package-ecosystem: "docker"
-    directory: "/"
+    directory: "/crates/lucas-core"
+    target-branch: "preprod"
     schedule:
       interval: "weekly"
       day: "monday"
