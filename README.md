@@ -20,4 +20,4 @@ LUCAS n'a pas d'authentification : il n'est accessible que depuis votre machine.
 
 ## Plus
 
-[Architecture](docs/architecture.md) · [Roadmap](ROADMAP.md) · [Contribuer](CONTRIBUTING.md) · [Licence MIT](LICENSE)
+[Plan](docs/jarvis-local-homelab-plan.md) · [Architecture](docs/architecture.md) · [Roadmap](ROADMAP.md) · [Contribuer](CONTRIBUTING.md) · [Licence MIT](LICENSE)
