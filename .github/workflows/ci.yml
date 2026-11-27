@@ -19,7 +19,7 @@ jobs:
       - run: rustup component add rustfmt clippy
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
-      - run: node --check crates/lucas-core/ui/app.js && node --check crates/lucas-core/ui/companion.js
+      - run: for file in crates/lucas-core/ui/*.js; do node --check "$file" || exit 1; done && node --test crates/lucas-core/ui/tests/*.test.js
 
   test:
     name: 🧪 Tests
@@ -36,7 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker compose config --quiet
-      - run: docker compose build lucas-core
+      - run: docker compose build lucas-core lucas-sandbox
 
   security:
     name: 🔒 Security Scan

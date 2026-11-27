@@ -4,7 +4,9 @@ use crate::App;
 use axum::{Router, http::header, routing::get};
 
 /// Interdit tout chargement hors de LUCAS : l'interface fonctionne hors ligne.
-const CSP: &str = "default-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
+/// `blob:` : les aperçus des fichiers choisis, qui restent dans le navigateur.
+const CSP: &str = "default-src 'self'; img-src 'self' blob:; media-src 'self' blob:; \
+    frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
 
 pub fn routes() -> Router<App> {
     Router::new()
@@ -13,6 +15,26 @@ pub fn routes() -> Router<App> {
         .route(
             "/app.js",
             asset("text/javascript", include_str!("../ui/app.js")),
+        )
+        .route(
+            "/markdown.js",
+            asset("text/javascript", include_str!("../ui/markdown.js")),
+        )
+        .route(
+            "/previews.js",
+            asset("text/javascript", include_str!("../ui/previews.js")),
+        )
+        .route(
+            "/history.js",
+            asset("text/javascript", include_str!("../ui/history.js")),
+        )
+        .route(
+            "/chat.js",
+            asset("text/javascript", include_str!("../ui/chat.js")),
+        )
+        .route(
+            "/attachments.js",
+            asset("text/javascript", include_str!("../ui/attachments.js")),
         )
         .route(
             "/companion.js",

@@ -8,6 +8,16 @@ services:
     container_name: lucas-ollama
     restart: unless-stopped
     # Aucun port publié : l'API d'Ollama contournerait les protections de LUCAS.
+    environment:
+      # Réponses écrites en même temps ; chacune occupe de la mémoire.
+      OLLAMA_NUM_PARALLEL: ${OLLAMA_NUM_PARALLEL:-2}
+      # Deux modèles chargés ensemble dépassent 8 Go : le moteur était alors tué.
+      OLLAMA_MAX_LOADED_MODELS: ${OLLAMA_MAX_LOADED_MODELS:-1}
+      # Mémoire de discussion deux fois plus compacte.
+      OLLAMA_FLASH_ATTENTION: "1"
+      OLLAMA_KV_CACHE_TYPE: q8_0
+      # Sans borne, ce cache (en Mo) finit par faire tuer le moteur faute de mémoire.
+      LLAMA_ARG_CACHE_RAM: ${LLAMA_ARG_CACHE_RAM:-512}
     volumes:
       - ollama_data:/root/.ollama
     healthcheck:
@@ -36,6 +46,7 @@ services:
     build:
       context: .
       dockerfile: crates/lucas-core/Dockerfile
+      target: core
     container_name: lucas-core
     restart: unless-stopped
     depends_on:
@@ -46,9 +57,34 @@ services:
       OLLAMA_DEFAULT_MODEL: ${OLLAMA_DEFAULT_MODEL:-llama3.1:8b}
     volumes:
       - lucas_data:/data
+      - lucas_uploads:/uploads
     ports:
       - "127.0.0.1:${LUCAS_PORT:-8080}:8000"
+
+  # Examine les fichiers joints, à l'écart : sans réseau, sans les données de
+  # LUCAS, en lecture seule hormis le dossier d'échange.
+  lucas-sandbox:
+    build:
+      context: .
+      dockerfile: crates/lucas-core/Dockerfile
+      target: sandbox
+    container_name: lucas-sandbox
+    restart: unless-stopped
+    init: true
+    network_mode: none
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    mem_limit: 1g
+    cpus: 1
+    volumes:
+      - lucas_uploads:/uploads
 
 volumes:
   ollama_data:
   lucas_data:
+  lucas_uploads:

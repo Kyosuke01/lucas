@@ -7,14 +7,17 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+base64 = "0.22"
 axum.workspace = true
-tokio = { workspace = true, features = ["fs", "io-util"] }
+tokio = { workspace = true, features = ["fs", "io-util", "sync", "time"] }
 serde_json.workspace = true
 serde.workspace = true
 futures-util = "0.3"
+libc = "0.2"
 reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
 sha2 = "0.10"
 tokio-util = { version = "0.7", features = ["io"] }
 
 [dev-dependencies]
+http-body-util = "0.1"
 tower.workspace = true
