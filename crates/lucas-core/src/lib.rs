@@ -1,11 +1,15 @@
 //! Cœur de LUCAS : sert l'interface et relaie les demandes vers Ollama.
 
 mod aliases;
+mod files;
 mod guard;
 mod import;
+mod jobs;
 mod names;
 mod ollama;
+mod persona;
 mod providers;
+mod sandbox;
 mod settings;
 mod system;
 mod title;
@@ -18,6 +22,8 @@ use axum::{
     routing::{get, post},
 };
 use serde_json::{Value, json};
+
+pub use sandbox::run as run_sandbox;
 
 const SERVICE: &str = "LUCAS Core";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -33,6 +39,9 @@ pub struct Config {
     /// Dossier des données (noms d'affichage, réglages, imports) ;
     /// `None` : en mémoire seulement.
     pub data: Option<std::path::PathBuf>,
+    /// Dossier partagé avec le bac à sable qui examine les fichiers joints ;
+    /// `None` : pas de pièces jointes.
+    pub uploads: Option<std::path::PathBuf>,
 }
 
 #[derive(Clone)]
@@ -43,13 +52,19 @@ struct App {
     busy: names::Busy,
     aliases: aliases::Aliases,
     settings: settings::Store,
+    /// Réponses en cours ou récentes.
+    jobs: jobs::Jobs,
 }
 
 pub fn router(config: Config) -> Router {
     if let Some(data) = &config.data {
         import::clean(data);
     }
+    if let Some(uploads) = &config.uploads {
+        files::clean(uploads);
+    }
     let app = App {
+        jobs: jobs::Jobs::default(),
         aliases: aliases::Aliases::load(config.data.as_ref().map(|d| d.join("aliases.json"))),
         settings: settings::Store::load(config.data.as_ref().map(|d| d.join("settings.json"))),
         config,
@@ -80,6 +95,11 @@ pub fn router(config: Config) -> Router {
         .route(
             "/api/chat",
             post(ollama::chat).layer(DefaultBodyLimit::max(CHAT_LIMIT)),
+        )
+        .route("/api/chat/{id}", get(jobs::follow).delete(jobs::cancel))
+        .route(
+            "/api/files",
+            post(files::upload).layer(DefaultBodyLimit::disable()),
         )
         .layer(middleware::from_fn(guard::local_only))
         .with_state(app)
