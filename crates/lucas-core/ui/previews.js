@@ -82,7 +82,7 @@ const previews = (() => {
   }
 
   function clear() {
-    for (const id of [...memory.keys()]) forget(id);
+    for (const id of memory.keys()) forget(id);
     void use('readwrite', (store) => store.clear());
   }
 
@@ -109,7 +109,7 @@ const previews = (() => {
 // ── Préparation ──────────────────────────────────────────────────────────────
 
 function jpegBlob(base64) {
-  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  const bytes = Uint8Array.from(atob(base64), (c) => c.codePointAt(0));
   return new Blob([bytes], { type: 'image/jpeg' });
 }
 
@@ -155,7 +155,8 @@ async function viewsOf(file) {
         // Sans durée connue (enregistrements), seule la première image est prise.
         const timed = Number.isFinite(video.duration) && video.duration > 0;
         if (!timed) views.push(shrink(video, video.videoWidth, video.videoHeight));
-        for (let index = 0; timed && index < VIDEO_VIEWS; index += 1) {
+        const steps = timed ? VIDEO_VIEWS : 0;
+        for (let index = 0; index < steps; index += 1) {
           const seeked = once(video, 'seeked');
           video.currentTime = (video.duration * (index + 0.5)) / VIDEO_VIEWS;
           await seeked;
