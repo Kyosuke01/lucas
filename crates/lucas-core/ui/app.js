@@ -104,23 +104,84 @@ const confirmDelete = (title, text) => modal({ title, text, ok: 'Supprimer', can
 
 const HELP = {
   temperature: {
-    title: 'Température',
+    title: 'Style des réponses',
     text: [
-      'Elle règle la part de hasard dans les réponses.',
-      'Basse (0 à 0,3) : réponses précises et régulières, pour du code ou des faits.',
-      'Élevée (0,8 à 2) : réponses variées et créatives, mais moins fiables.',
-      'Laissez vide pour garder le réglage du modèle.',
+      'Précis : réponses régulières, idéales pour le code ou les faits.',
+      'Équilibré : un bon compromis pour la plupart des usages.',
+      'Créatif : réponses plus variées, mais moins fiables.',
+      'Par défaut : on garde le réglage du modèle.',
     ],
   },
   context: {
-    title: 'Contexte',
+    title: 'Mémoire de la conversation',
     text: [
-      "C'est la quantité de texte que le modèle garde en tête, mesurée en jetons (un jeton vaut environ trois quarts d'un mot).",
-      'Plus il est grand, plus LUCAS se souvient d\'une longue conversation, mais plus il consomme de mémoire et ralentit.',
-      '4096 convient à un usage courant. Laissez vide pour garder le réglage du modèle.',
+      "C'est la longueur de conversation que LUCAS garde en tête.",
+      'Longue : il se souvient mieux d\'un échange étendu, mais consomme plus de mémoire et ralentit.',
+      'Normale convient à un usage courant. Par défaut : on garde le réglage du modèle.',
     ],
   },
 };
+
+// Curseurs à paliers. Chaque palier affiche sa valeur exacte ; la pastille « Recommandé » marque le réglage conseillé.
+const DIALS = {
+  temperature: {
+    stops: [0, 0.3, 0.7, 1.2, 2],
+    recommended: 0.7,
+    format: (v) => v.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 2 }),
+    help: (v) => (v < 0.5 ? 'Réponses précises et régulières.' : v < 1.5 ? 'Bon compromis pour la plupart des usages.' : 'Réponses variées, moins fiables.'),
+  },
+  context: {
+    stops: [1024, 2048, 4096, 8192, 16384, 32768, 65536],
+    recommended: 4096,
+    format: (v) => `${v / 1024}k`,
+    help: (v) => `Environ ${Math.round(v * 0.75).toLocaleString('fr-FR')} mots gardés en mémoire.`,
+  },
+};
+
+for (const [name, dial] of Object.entries(DIALS)) {
+  const range = $(`${name}-range`);
+  const ticks = $(`${name}-ticks`);
+  const last = dial.stops.length - 1;
+  range.min = 0;
+  range.max = last;
+  range.step = 1;
+  ticks.replaceChildren(...dial.stops.map((value, i) => {
+    const tick = element('span', 'tick');
+    tick.style.left = `${(i / last) * 100}%`;
+    tick.dataset.index = i;
+    if (value === dial.recommended) {
+      tick.classList.add('recommended');
+      tick.title = 'Valeur conseillée';
+    }
+    tick.append(element('span', 'value', dial.format(value)));
+    tick.onclick = () => { range.value = i; paint(name); };
+    return tick;
+  }));
+  range.oninput = () => paint(name);
+}
+
+// Affiche la valeur sélectionnée et met en évidence son palier.
+function paint(name) {
+  const dial = DIALS[name];
+  const index = Number($(`${name}-range`).value);
+  const value = dial.stops[index];
+  for (const tick of $(`${name}-ticks`).children) tick.classList.toggle('on', Number(tick.dataset.index) === index);
+  if (name === 'context') $('context-words').textContent = dial.help(value);
+}
+
+// Pose une valeur enregistrée sur le palier le plus proche.
+function setDials(temperature, context) {
+  for (const [name, value] of [['temperature', temperature], ['context', context]]) {
+    const { stops, recommended } = DIALS[name];
+    const target = value ?? recommended;
+    const nearest = stops.reduce((best, stop, i) => (Math.abs(stop - target) < Math.abs(stops[best] - target) ? i : best), 0);
+    $(`${name}-range`).value = nearest;
+    paint(name);
+  }
+}
+const readDial = (name) => DIALS[name].stops[Number($(`${name}-range`).value)];
+const readTemperature = () => readDial('temperature');
+const readContext = () => readDial('context');
 for (const button of document.querySelectorAll('[data-help]')) {
   button.onclick = () => modal(HELP[button.dataset.help]);
 }
@@ -188,6 +249,8 @@ function renderLocation() {
   if (onSettings) title = 'Réglages';
   // Un titre n'est jamais vide pour les lecteurs d'écran ; sans objet, il est masqué.
   $('title').textContent = title || 'LUCAS';
+  $('info-toggle').hidden = !(onChat && current);
+  if (!onChat) setInfo(false);
   $('title').classList.toggle('sr', !title);
   $('show-models').classList.toggle('current', onModels);
   $('show-settings').classList.toggle('current', onSettings);
@@ -215,14 +278,39 @@ function fill(node, text) {
     }
   });
   // Le signe est conservé : le recréer relancerait son animation à chaque mot.
-  node.replaceChildren(node.querySelector(':scope > .live') || liveMark(), ...body);
+  // L'état affiché pendant la génération reste en haut, à côté du logo.
+  const state = node.querySelector(':scope > .state');
+  node.replaceChildren(node.querySelector(':scope > .live') || liveMark(), ...(state ? [state] : []), ...body);
 }
 
-function messageNode({ role, content }) {
+function messageNode({ role, content, interrupted }) {
   const node = element('div', `message ${role}`);
   if (role === 'user') node.append(element('span', '', content));
   else fill(node, content);
+  if (interrupted) node.append(element('p', 'cut', 'Réponse coupée à votre demande.'));
   return node;
+}
+
+// Pendant la génération, l'état s'écrit à la fin de la réponse en cours.
+function showState(text) {
+  $('status').textContent = text;
+  const message = $('messages').lastElementChild;
+  if (!generation || !message?.classList.contains('assistant')) return;
+  let state = message.querySelector(':scope > .state');
+  if (!state) {
+    state = element('p', 'state');
+    message.prepend(state);
+  }
+  state.textContent = text;
+}
+
+// Ligne d'état sous la discussion : pour le résultat final, qui peut disparaître.
+let activityTimer;
+function setActivity(text, fade = false) {
+  clearTimeout(activityTimer);
+  $('activity').textContent = text;
+  $('status').textContent = text;
+  if (fade) activityTimer = setTimeout(() => { $('activity').textContent = ''; }, 3000);
 }
 
 function renderMessages() {
@@ -245,22 +333,107 @@ function renderMessages() {
   box.scrollTop = box.scrollHeight;
 }
 
+// Menu « … » d'une discussion, et discussion en cours de renommage.
+let menuOf = null;
+let renaming = null;
+
+function closeMenu() {
+  menuOf = null;
+  document.querySelector('.menu')?.remove();
+}
+document.addEventListener('pointerdown', (event) => {
+  if (menuOf && !event.target.closest('.menu, .more')) closeMenu();
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && menuOf) closeMenu();
+});
+
+async function deleteConversation(conversation) {
+  if (!(await confirmDelete('Supprimer la discussion ?', `« ${conversation.title} » sera définitivement effacée.`))) return;
+  if (generation?.conversation === conversation) generation.controller.abort();
+  conversations = conversations.filter((c) => c !== conversation);
+  if (current === conversation) current = null;
+  save(STORE, load(STORE, []).filter((c) => c.id !== conversation.id));
+  render();
+}
+
+function menuItem(icon, text, onClick, danger = false) {
+  const item = element('button', danger ? 'danger' : '');
+  item.type = 'button';
+  item.setAttribute('role', 'menuitem');
+  item.innerHTML = `<svg class="icon" aria-hidden="true"><use href="#i-${icon}"/></svg>`;
+  item.append(text);
+  item.onclick = onClick;
+  return item;
+}
+
+function openMenu(entry, conversation) {
+  closeMenu();
+  menuOf = conversation;
+  const menu = element('div', 'menu');
+  menu.setAttribute('role', 'menu');
+  menu.append(
+    menuItem('edit', 'Renommer', () => {
+      closeMenu();
+      renaming = conversation;
+      renderHistory();
+    }),
+    menuItem('trash', 'Supprimer', () => { closeMenu(); deleteConversation(conversation); }, true),
+  );
+  entry.append(menu);
+  menu.querySelector('button').focus();
+}
+
+// Champ à la place du titre : Entrée valide, Échap annule, sortir du champ valide aussi.
+function renameField(conversation) {
+  const input = element('input', 'rename');
+  input.value = conversation.title;
+  input.maxLength = 80;
+  input.setAttribute('aria-label', 'Nouveau titre de la discussion');
+  let done = false;
+  const finish = (keep) => {
+    if (done) return;
+    done = true;
+    const title = input.value.trim();
+    renaming = null;
+    if (keep && title && title !== conversation.title) {
+      conversation.title = title;
+      persist(conversation);
+    }
+    renderLocation();
+    renderHistory();
+  };
+  input.onkeydown = (event) => {
+    if (event.key === 'Enter') { event.preventDefault(); finish(true); }
+    if (event.key === 'Escape') finish(false);
+  };
+  input.onblur = () => finish(true);
+  return input;
+}
+
 function renderHistory() {
   $('history').replaceChildren(...conversations.map((conversation) => {
     const active = conversation === current && !$('chat').hidden;
     const entry = element('div', active ? 'entry current' : 'entry');
+    if (renaming === conversation) {
+      const input = renameField(conversation);
+      entry.append(input);
+      queueMicrotask(() => { input.focus(); input.select(); });
+      return entry;
+    }
     const open = element('button', 'row', conversation.title);
     open.type = 'button';
     if (conversation === current) open.setAttribute('aria-current', 'true');
     open.onclick = () => { current = conversation; show('chat'); render(); };
-    entry.append(open, iconButton('trash', 'Supprimer la conversation', async () => {
-      if (!(await confirmDelete('Supprimer la discussion ?', `« ${conversation.title} » sera définitivement effacée.`))) return;
-      if (generation?.conversation === conversation) generation.controller.abort();
-      conversations = conversations.filter((c) => c !== conversation);
-      if (current === conversation) current = null;
-      save(STORE, load(STORE, []).filter((c) => c.id !== conversation.id));
-      render();
-    }));
+    const more = iconButton('more', 'Options de la discussion', () => {
+      if (menuOf === conversation) closeMenu();
+      else openMenu(entry, conversation);
+    });
+    more.classList.add('more');
+    more.setAttribute("aria-haspopup", "menu");
+    more.setAttribute("aria-expanded", String(menuOf === conversation));
+    entry.append(open, more);
+    if (menuOf === conversation) openMenu(entry, conversation);
     return entry;
   }));
 }
@@ -270,6 +443,7 @@ function render() {
   renderHistory();
   renderMessages();
   updateSend();
+  renderDetails();
 }
 
 function updateSend() {
@@ -280,6 +454,7 @@ function updateSend() {
   const button = $('send');
   button.setAttribute('aria-label', generation ? 'Arrêter' : 'Envoyer');
   button.querySelector('use').setAttribute('href', generation ? '#i-stop' : '#i-send');
+  button.classList.toggle('stop', Boolean(generation));
   button.disabled = !generation && (!$('input').value.trim() || !$('model').value);
 }
 
@@ -301,15 +476,18 @@ async function send(text) {
   const controller = new AbortController();
   generation = { controller, conversation };
   notice('');
-  $('status').textContent = 'LUCAS répond';
   companion.think();
   render();
+  showState('En train de réfléchir…');
 
   try {
     const response = await api('/api/chat', 'POST', { model, messages: history }, controller.signal);
     await readLines(response, (data) => {
       reply.content += data.message?.content || '';
-      if (reply.content) companion.talk();
+      if (reply.content) {
+        companion.talk();
+        if ($('status').textContent !== 'En train d\'écrire…') showState('En train d\'écrire…');
+      }
       if (current !== conversation) return;
       const box = $('messages');
       const follow = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
@@ -325,8 +503,11 @@ async function send(text) {
     if (error.name !== 'AbortError') notice(readable(error));
   }
 
-  // Une réponse restée vide n'est pas conservée.
-  if (!reply.content) conversation.messages.splice(conversation.messages.indexOf(reply), 1);
+  // Coupée par l'utilisateur : on le signale, même si rien n'a été écrit.
+  const interrupted = controller.signal.aborted;
+  if (interrupted) reply.interrupted = true;
+  // Une réponse vide et non coupée n'est pas conservée.
+  if (!reply.content && !interrupted) conversation.messages.splice(conversation.messages.indexOf(reply), 1);
   generation = null;
   // Après une erreur, il reste inquiet.
   if ($('notice').hidden) companion.done(Boolean(reply.content));
@@ -334,7 +515,9 @@ async function send(text) {
   if (conversations.includes(conversation)) persist(conversation);
   // Après la première réponse, pour ne pas la retarder.
   if (reply.content && conversation.messages.length === 2) void summarize(conversation, model, text);
-  $('status').textContent = 'Réponse terminée';
+  if (interrupted) setActivity('Réponse interrompue.', true);
+  else if ($('notice').hidden) setActivity('Réponse terminée.', true);
+  else setActivity('Erreur pendant la réponse.');
   render();
   // Final : l'anneau se retrace une fois.
   if (current === conversation && reply.content) {
@@ -667,6 +850,7 @@ $('import').onsubmit = async (event) => {
 };
 
 // ── Réglages ────────────────────────────────────────────────────────────────
+let savedTimer;
 
 function providerRow({ name = '', url = '', has_key: hasKey = false } = {}) {
   const row = element('div', 'provider');
@@ -695,8 +879,9 @@ function providerRow({ name = '', url = '', has_key: hasKey = false } = {}) {
 
 function fillSettings(data) {
   $('system-prompt').value = data.system_prompt;
-  $('temperature').value = data.temperature ?? '';
-  $('context').value = data.context ?? '';
+  setDials(data.temperature, data.context);
+  settings = data;
+  renderDetails();
   $('providers').replaceChildren(...data.providers.map(providerRow));
 }
 
@@ -756,7 +941,6 @@ $('add-provider').onclick = () => $('providers').append(providerRow());
 
 $('preferences').onsubmit = async (event) => {
   event.preventDefault();
-  const number = (id) => ($(id).value === '' ? null : Number($(id).value));
   const providers = [...$('providers').children].map((row) =>
     Object.fromEntries([...row.querySelectorAll('input')].map((i) => [i.name, i.value.trim()])));
   notice('');
@@ -764,12 +948,15 @@ $('preferences').onsubmit = async (event) => {
   try {
     const body = {
       system_prompt: $('system-prompt').value,
-      temperature: number('temperature'),
-      context: number('context'),
+      temperature: readTemperature(),
+      context: readContext(),
       providers,
     };
     fillSettings(await (await api('/api/settings', 'PUT', body)).json());
+    // Le message de réussite disparaît seul ; les erreurs restent affichées.
     $('saved').textContent = 'Enregistré';
+    clearTimeout(savedTimer);
+    savedTimer = setTimeout(() => { $('saved').textContent = ''; }, 2500);
     void refreshModels();
   } catch (error) {
     notice(readable(error));
@@ -807,6 +994,61 @@ $('model').onchange = () => { save(MODEL_STORE, $('model').value); updateSend();
 $('new-chat').onclick = () => { current = null; show('chat'); render(); $('input').focus(); };
 $('show-models').onclick = () => { show('models'); render(); };
 $('show-settings').onclick = () => { show('settings'); render(); };
+
+// ── Volet d'infos de la discussion ─────────────────────────────────────────
+// Sans réglage explicite, Ollama utilise une fenêtre de 4 096 jetons : c'est la base du calcul.
+const ASSUMED_CONTEXT = 4096;
+// Réglages enregistrés, pour afficher ceux qui s'appliquent à la discussion.
+let settings = null;
+
+function setInfo(open) {
+  document.body.classList.toggle('info-open', open);
+  $('info-toggle').setAttribute('aria-expanded', String(open));
+  if (open) renderDetails();
+}
+$('info-toggle').onclick = () => setInfo(!document.body.classList.contains('info-open'));
+
+// Replie la barre latérale de gauche (bureau uniquement).
+$('sidebar-toggle').onclick = () => {
+  const closed = document.body.classList.toggle('sidebar-closed');
+  $('sidebar-toggle').setAttribute('aria-expanded', String(!closed));
+  $('sidebar-toggle').setAttribute('aria-label', closed ? 'Afficher la barre latérale' : 'Replier la barre latérale');
+};
+
+// Le texte est estimé : environ 4 caractères par jeton.
+function renderDetails() {
+  const body = $('details-body');
+  if (!current) {
+    body.replaceChildren(element('p', 'muted', 'Ouvrez une discussion pour voir ses paramètres.'));
+    return;
+  }
+  const chars = current.messages.reduce((sum, message) => sum + (message.content || '').length, 0);
+  const tokens = Math.ceil(chars / 4);
+  const limit = settings?.context ?? ASSUMED_CONTEXT;
+  const percent = Math.min(100, Math.round((tokens / limit) * 100));
+
+  const fill = element('span');
+  fill.style.width = `${percent}%`;
+  if (percent >= 80) fill.classList.add('high');
+  const meter = element('div', 'meter');
+  meter.setAttribute('role', 'meter');
+  meter.setAttribute('aria-label', 'Remplissage de la fenêtre de contexte');
+  meter.setAttribute('aria-valuemin', '0');
+  meter.setAttribute('aria-valuemax', '100');
+  meter.setAttribute('aria-valuenow', String(percent));
+  meter.append(fill);
+
+  const bar = element('div', 'context-bar');
+  bar.append(element('span', 'pct', `${percent} %`), meter);
+  body.replaceChildren(element('p', 'context-head', 'Contexte'), bar);
+}
+
+async function loadSettings() {
+  try {
+    settings = await (await api('/api/settings')).json();
+    renderDetails();
+  } catch { /* volet sans réglages : le calcul reste sur la valeur par défaut */ }
+}
 $('menu').onclick = (event) => { event.stopPropagation(); drawer(true); };
 $('close-menu').onclick = () => drawer(false);
 document.querySelector('main').addEventListener('click', () => drawer(false));
@@ -825,3 +1067,4 @@ applyTheme(load(THEME_STORE, 'light dark'));
 render();
 void refreshModels();
 void refreshSystem();
+void loadSettings();
